@@ -13,7 +13,6 @@
 
 import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
-import { internalDomains } from "@/lib/env";
 import { createClient, getSessionProfile } from "@/lib/supabase/server";
 import type { ClientFormState } from "./action-types";
 import { CLIENT_STATUSES, type ClientStatus } from "./vocabulary";
@@ -35,20 +34,25 @@ function tagsOf(form: FormData): string[] {
 }
 
 /* ── Create ────────────────────────────────────────────────────────────────
- * Company name and a primary email are the two things asked for — everything
- * else (status, owner, timezone, notes) already has a sane default and can be
- * set on the client's own page a moment later. The slug and every contact row
- * are written by `create_client_with_contacts` in one transaction: a client
- * created with no way to reach it is exactly the defect this closes, so
- * either the whole thing lands or none of it does.
+ * Company name and at least one email are the two things asked for —
+ * everything else (status, owner, timezone, notes) already has a sane
+ * default and can be set on the client's own page a moment later. The slug
+ * and every contact row are written by `create_client_with_contacts` in one
+ * transaction: a client created with no way to reach it is exactly the
+ * defect this closes, so either the whole thing lands or none of it does.
+ *
+ * `isInternal` per address arrives already decided — the form pre-fills it
+ * from the domain via `isInternalEmail()`, the same way `ContactFormSheet`
+ * does, and lets it be overridden. This action persists what it is told
+ * rather than re-deriving it from a domain list a second time.
  */
+
+export type NewClientEmail = { email: string; isInternal: boolean };
 
 export type NewClientInput = {
   name: string;
   contactName: string;
-  primaryEmail: string;
-  email2: string;
-  email3: string;
+  emails: NewClientEmail[];
   /** Comma-separated, same convention as the Details form's tags field. */
   tags: string;
   notes: string;
@@ -70,17 +74,17 @@ export async function createClientAction(input: NewClientInput): Promise<CreateC
   if (trimmedName === "") {
     return { ok: false, message: "A client needs a name. Add one and try again." };
   }
-  const primaryEmail = input.primaryEmail.trim();
-  if (primaryEmail === "" || primaryEmail.indexOf("@") <= 0) {
+
+  const cleaned = input.emails
+    .map((row) => ({ email: row.email.trim(), isInternal: row.isInternal }))
+    .filter((row) => row.email !== "");
+  if (cleaned.length === 0 || cleaned.every((row) => row.email.indexOf("@") <= 0)) {
     return {
       ok: false,
-      message: "A primary email is needed — a client with no address on file can't be mailed.",
+      message: "At least one email is needed — a client with no address on file can't be mailed.",
     };
   }
 
-  const emails = [primaryEmail, input.email2.trim(), input.email3.trim()].filter(
-    (email) => email !== "",
-  );
   const tags = [
     ...new Set(input.tags.split(",").map((tag) => tag.trim()).filter(Boolean)),
   ];
@@ -93,9 +97,9 @@ export async function createClientAction(input: NewClientInput): Promise<CreateC
     const { data, error } = await supabase.rpc("create_client_with_contacts", {
       p_name: trimmedName,
       p_contact_name: input.contactName.trim(),
-      p_emails: emails,
+      p_emails: cleaned.map((row) => row.email),
+      p_is_internal: cleaned.map((row) => row.isInternal),
       p_tags: tags,
-      p_internal_domains: internalDomains(),
       p_notes: input.notes.trim(),
     });
 
@@ -121,8 +125,13 @@ export async function createClientAction(input: NewClientInput): Promise<CreateC
       action: "client.created",
       entityType: "clients",
       entityId: row.out_id,
-      summary: `Created ${trimmedName} with ${emails.length} ${emails.length === 1 ? "contact" : "contacts"}`,
-      diff: { emails: emails.length, contact_name: input.contactName.trim() || null, tags },
+      summary: `Created ${trimmedName} with ${cleaned.length} ${cleaned.length === 1 ? "contact" : "contacts"}`,
+      diff: {
+        emails: cleaned.length,
+        internal: cleaned.filter((row) => row.isInternal).length,
+        contact_name: input.contactName.trim() || null,
+        tags,
+      },
     });
 
     revalidatePath("/clients");

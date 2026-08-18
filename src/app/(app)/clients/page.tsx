@@ -19,6 +19,7 @@ import { NewClientButton } from "@/components/clients/new-client-button";
 import { HEALTH_RULE } from "@/components/clients/vocabulary";
 import { getClientKpis, listClients, parseClientFilters } from "@/lib/queries/clients";
 import type { SearchParams } from "@/lib/queries/campaigns";
+import { internalDomains } from "@/lib/env";
 import { fmtInt } from "@/lib/utils";
 import { serverNow } from "@/lib/clock";
 
@@ -62,7 +63,7 @@ export default async function ClientsPage({
           </p>
         </div>
 
-        <NewClientButton />
+        <NewClientButton domains={internalDomains()} />
       </header>
 
       {kpis.ok ? (

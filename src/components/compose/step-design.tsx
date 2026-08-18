@@ -246,7 +246,7 @@ export function StepDesign({ doc, patch }: StepDesignProps) {
             title={`${previewing ? templateMeta(previewing).name : "Template"} preview`}
             html={html}
             width={600}
-            height={760}
+            height={1600}
             scale={0.68}
             caption="600 px — the widest column Outlook renders without a scrollbar"
           />

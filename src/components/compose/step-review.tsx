@@ -318,7 +318,7 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
                     title="Desktop preview of this email, 600 pixels wide"
                     html={html}
                     width={600}
-                    height={720}
+                    height={440}
                     scale={0.62}
                     caption="Desktop · 600 px"
                   />
@@ -329,7 +329,7 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
                     title="Mobile preview of this email, 375 pixels wide"
                     html={html}
                     width={375}
-                    height={720}
+                    height={640}
                     scale={0.62}
                     caption="Mobile · 375 px"
                   />
@@ -345,8 +345,10 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
                 }}
               >
                 Both frames are the same document at two viewport widths, shrunk
-                to fit this column. The greeting uses your own name here; each
-                recipient receives theirs, and their own tracking token.
+                to fit this column — each one scrolls on its own past a
+                comfortable height, rather than stretching the page. The
+                greeting uses your own name here; each recipient receives
+                theirs, and their own tracking token.
                 {doc.scoreboardEnabled
                   ? scoreboardIncluded
                     ? " The performance scoreboard is included, from this client's real sent reports."

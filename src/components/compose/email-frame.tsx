@@ -8,9 +8,17 @@
  * renderer and no approximation: what is behind this glass is the bytes a
  * recipient receives, minus their own name and their own tracking token.
  *
- * The iframe is sandboxed with nothing granted. An email body is untrusted by
- * construction, and a preview must not be able to run anything or navigate the
- * app away from a half-written draft.
+ * The frame grows to fit the real height of what's inside it, measured after
+ * load, rather than a fixed guess — a preview that silently truncates a tall
+ * report (an image, a long body, the scoreboard) behind `overflow: hidden`
+ * with no visible way to reach the rest is not a preview of the email, it's a
+ * preview of the first screenful of it. Only a genuinely extreme document
+ * hits the ceiling below, and that one scrolls rather than vanishing.
+ *
+ * `allow-same-origin` is the one sandbox token granted — it's what lets this
+ * component read the document's own height back. `allow-scripts` stays off,
+ * so nothing inside can run regardless; the content is our own renderer's
+ * escaped output, never arbitrary third-party HTML.
  */
 
 import * as React from "react";
@@ -19,7 +27,7 @@ export type EmailFrameProps = {
   html: string;
   /** The viewport width to render at — 600 for desktop, 375 for a phone. */
   width: number;
-  /** Visible height of the frame before it scrolls. */
+  /** The starting height, shown until the real content height is measured. */
   height?: number;
   /** Shrinks the whole frame to fit the column it sits in. */
   scale?: number;
@@ -29,6 +37,9 @@ export type EmailFrameProps = {
   device: "desktop" | "mobile";
 };
 
+/** A ceiling, not a target — past this, the frame scrolls instead of growing without bound. */
+const MAX_REAL_HEIGHT = 2600;
+
 export function EmailFrame({
   html,
   width,
@@ -37,14 +48,36 @@ export function EmailFrame({
   title,
   device,
 }: EmailFrameProps) {
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const [measured, setMeasured] = React.useState<number | null>(null);
+
+  // A new document means the old measurement no longer describes it — never
+  // show yesterday's height against today's html while the new one loads.
+  // Adjusted during render, not in an effect, so the stale height never
+  // paints even for a single frame.
+  const [seenHtml, setSeenHtml] = React.useState(html);
+  if (seenHtml !== html) {
+    setSeenHtml(html);
+    setMeasured(null);
+  }
+
+  function onLoad() {
+    const doc = iframeRef.current?.contentDocument;
+    const next = Math.max(doc?.body?.scrollHeight ?? 0, doc?.documentElement?.scrollHeight ?? 0);
+    if (next > 0) setMeasured(next);
+  }
+
+  const realHeight = Math.min(measured ?? height, MAX_REAL_HEIGHT);
+  const capped = (measured ?? 0) > MAX_REAL_HEIGHT;
   const radius = device === "mobile" ? "var(--radius-lg)" : "var(--radius-sm)";
 
   return (
     <div
       style={{
         width: `${Math.round(width * scale)}px`,
-        height: `${Math.round(height * scale)}px`,
-        overflow: "hidden",
+        height: `${Math.round(realHeight * scale)}px`,
+        overflowY: capped ? "auto" : "hidden",
+        overflowX: "hidden",
         borderRadius: radius,
         background: "var(--surface-grouped)",
         border: "1px solid var(--stroke-rim)",
@@ -52,14 +85,15 @@ export function EmailFrame({
       }}
     >
       <iframe
+        ref={iframeRef}
         title={title}
         srcDoc={html}
-        sandbox=""
+        sandbox="allow-same-origin"
         referrerPolicy="no-referrer"
-        loading="lazy"
+        onLoad={onLoad}
         style={{
           width: `${width}px`,
-          height: `${height}px`,
+          height: `${Math.max(realHeight, height)}px`,
           border: 0,
           display: "block",
           transform: `scale(${scale})`,

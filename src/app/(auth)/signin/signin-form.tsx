@@ -17,22 +17,17 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, CircleAlert } from "lucide-react";
 import { Button, Card, Field, TextInput } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import { env } from "@/lib/env";
 
 type Props = {
   /** Where to land once the session exists. Already validated server-side. */
   next: string;
   /** Why the person is looking at this screen, if they did not choose to. */
-  reason?: "inactive" | "oauth" | null;
-  /** The provider's own words, when there are any. Never paraphrased. */
-  detail?: string | null;
+  reason?: "inactive" | null;
 };
 
 const REASON_COPY: Record<NonNullable<Props["reason"]>, string> = {
   inactive:
     "This account is deactivated, so it can sign in but cannot read anything. Ask an admin to restore it.",
-  oauth:
-    "Google sign-in did not finish, so no session was created. Try again, or use your email and password below.",
 };
 
 /** Supabase speaks in codes. A person needs the cause and the next move. */
@@ -53,12 +48,12 @@ function explain(code: string | undefined, message: string): string {
   }
 }
 
-export function SignInForm({ next, reason = null, detail = null }: Props) {
+export function SignInForm({ next, reason = null }: Props) {
   const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState<"password" | "google" | null>(null);
+  const [pending, setPending] = React.useState<"password" | null>(null);
   const emailRef = React.useRef<HTMLInputElement>(null);
 
   // A stale session that resolves to no readable profile is worse than none:
@@ -101,32 +96,6 @@ export function SignInForm({ next, reason = null, detail = null }: Props) {
     } catch {
       setError(
         "Could not reach the sign-in service. Check your connection and press Sign in again — nothing you typed has been lost.",
-      );
-      setPending(null);
-    }
-  }
-
-  async function onGoogle() {
-    if (pending) return;
-    setError(null);
-    setPending("google");
-    try {
-      const redirectTo = new URL("/auth/callback", env.NEXT_PUBLIC_APP_URL);
-      redirectTo.searchParams.set("next", next);
-      const { error: authError } = await createClient().auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: redirectTo.toString() },
-      });
-      if (authError) {
-        setError(
-          `Google sign-in could not start: ${authError.message}. Use your email and password instead.`,
-        );
-        setPending(null);
-      }
-      // On success the browser is already navigating to Google.
-    } catch {
-      setError(
-        "Could not reach Google. Use your email and password instead, or try again in a moment.",
       );
       setPending(null);
     }
@@ -179,11 +148,6 @@ export function SignInForm({ next, reason = null, detail = null }: Props) {
             }}
           >
             {notice}
-            {detail ? (
-              <span style={{ display: "block", color: "var(--content-tertiary)" }}>
-                {detail}
-              </span>
-            ) : null}
           </p>
         ) : null}
 
@@ -256,28 +220,6 @@ export function SignInForm({ next, reason = null, detail = null }: Props) {
             Sign in
           </Button>
         </form>
-
-        <div
-          aria-hidden="true"
-          style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}
-        >
-          <span style={{ flex: 1, height: "1px", background: "var(--stroke-hairline)" }} />
-          <span className="t-overline" style={{ color: "var(--content-tertiary)" }}>
-            or
-          </span>
-          <span style={{ flex: 1, height: "1px", background: "var(--stroke-hairline)" }} />
-        </div>
-
-        <Button
-          type="button"
-          variant="glass"
-          size="l"
-          fullWidth
-          loading={pending === "google"}
-          onClick={() => void onGoogle()}
-        >
-          Continue with Google
-        </Button>
 
         <p
           className="t-caption"

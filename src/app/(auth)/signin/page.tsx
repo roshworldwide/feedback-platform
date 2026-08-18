@@ -19,8 +19,8 @@ function safeNext(raw: string | null): string {
   return raw;
 }
 
-function reasonOf(raw: string | null): "inactive" | "oauth" | null {
-  return raw === "inactive" || raw === "oauth" ? raw : null;
+function reasonOf(raw: string | null): "inactive" | null {
+  return raw === "inactive" ? raw : null;
 }
 
 export default async function SignInPage({
@@ -43,5 +43,5 @@ export default async function SignInPage({
   }
   if (signedIn) redirect(next);
 
-  return <SignInForm next={next} reason={reason} detail={first(params.detail)} />;
+  return <SignInForm next={next} reason={reason} />;
 }

@@ -26,12 +26,8 @@ import { env } from "@/lib/env";
  * request through. What they cannot do is present a browser session cookie,
  * so gating them here would make them permanently unreachable rather than
  * merely inconvenient.
- *
- * `/auth/callback` is included because the OAuth round trip lands there
- * *before* a session cookie exists — locking it would make Google sign-in
- * impossible.
  */
-const PUBLIC_EXACT = new Set(["/signin", "/auth/callback"]);
+const PUBLIC_EXACT = new Set(["/signin"]);
 const PUBLIC_PREFIXES = ["/f/", "/u/", "/api/t/", "/api/cron/", "/api/webhooks/"] as const;
 
 export function isPublicPath(pathname: string): boolean {

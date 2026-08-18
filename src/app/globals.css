@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@import "../styles/aurum.css";
+
+/* ============================================================================
+   Tailwind bridge.
+   Utilities resolve to AURUM roles — never to a ramp value, never to a hex.
+   If a utility you want does not exist here, the design does not need it.
+   ========================================================================= */
+
+@theme inline {
+  --color-canvas:      var(--surface-canvas);
+  --color-grouped:     var(--surface-grouped);
+  --color-raised:      var(--surface-raised);
+  --color-glass:       var(--surface-glass);
+  --color-scrim:       var(--surface-scrim);
+
+  --color-primary:     var(--content-primary);
+  --color-secondary:   var(--content-secondary);
+  --color-tertiary:    var(--content-tertiary);
+  --color-quaternary:  var(--content-quaternary);
+  --color-accent:      var(--content-accent);
+  --color-on-accent:   var(--content-on-accent);
+
+  --color-hairline:    var(--stroke-hairline);
+  --color-rim:         var(--stroke-rim);
+  --color-quiet:       var(--fill-quiet);
+  --color-pressed:     var(--fill-pressed);
+
+  --color-nominal:     var(--signal-nominal);
+  --color-caution:     var(--signal-caution);
+  --color-abort:       var(--signal-abort);
+  --color-link:        var(--signal-link);
+
+  --radius-sm:      var(--radius-sm);
+  --radius-lg:      var(--radius-lg);
+  --radius-xl:      var(--radius-xl);
+  --radius-capsule: var(--radius-capsule);
+
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
+  --shadow-e4: var(--e4);
+  --shadow-e5: var(--e5);
+
+  --font-display: var(--font-display);
+  --font-text:    var(--font-text);
+  --font-mono:    var(--font-mono);
+}
+
+/* ── The fourteen steps as utilities ──────────────────────────────────────
+   A design that needs a fifteenth step is wrong.                           */
+@layer components {
+  .t-colossus  { font: var(--t-colossus);  letter-spacing: var(--tr-colossus); }
+  .t-display-1 { font: var(--t-display-1); letter-spacing: var(--tr-display-1); }
+  .t-display-2 { font: var(--t-display-2); letter-spacing: var(--tr-display-2); }
+  .t-title-1   { font: var(--t-title-1);   letter-spacing: var(--tr-title-1); }
+  .t-title-2   { font: var(--t-title-2);   letter-spacing: var(--tr-title-2); }
+  .t-title-3   { font: var(--t-title-3);   letter-spacing: var(--tr-title-3); }
+  .t-headline  { font: var(--t-headline);  letter-spacing: var(--tr-headline); }
+  .t-body      { font: var(--t-body);      letter-spacing: var(--tr-body); }
+  .t-callout   { font: var(--t-callout);   letter-spacing: var(--tr-callout); }
+  .t-subhead   { font: var(--t-subhead);   letter-spacing: var(--tr-subhead); }
+  .t-footnote  { font: var(--t-footnote);  letter-spacing: var(--tr-footnote); }
+  .t-caption   { font: var(--t-caption);   letter-spacing: var(--tr-caption); }
+  .t-micro     { font: var(--t-micro);     letter-spacing: var(--tr-micro); }
+  .t-overline  {
+    font: var(--t-overline);
+    letter-spacing: var(--tr-overline);
+    text-transform: uppercase;
+  }
+
+  /* Titles balance, long-form is pretty. Never justify, never hyphenate. */
+  .t-colossus, .t-display-1, .t-display-2,
+  .t-title-1, .t-title-2, .t-title-3 { text-wrap: balance; }
+  .prose-measure { max-width: 68ch; text-wrap: pretty; }
+
+  /* ── Glass — one recipe, applied at exactly one level at a time ───────── */
+  .glass {
+    background: var(--surface-glass);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border: 1px solid var(--stroke-rim);
+  }
+  /* Metal never sits on glass and glass never sits on metal. */
+
+  /* ── Hairline rule — a gap is preferred; use this only when space fails ── */
+  .hairline { border-color: var(--stroke-hairline); }
+}
+
+/* A child inside a rounded parent takes the parent's radius minus the gap.
+   Never the same radius between them. Concentricity is the single most
+   common tell of amateur work — sheet 31. */
+@layer utilities {
+  .r-concentric-lg { border-radius: calc(var(--radius-lg) - var(--space-1)); }
+  .r-concentric-xl { border-radius: calc(var(--radius-xl) - var(--space-2)); }
+}

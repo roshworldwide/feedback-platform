@@ -1,0 +1,550 @@
+/* ============================================================================
+   AURUM — The Titanium Standard · Edition 27.0
+   Token layer for Convin Data Labs.
+
+   Ramp values are stated once here and never again. Product code references
+   semantic roles (--surface-*, --content-*, --stroke-*, --fill-*, --light-*),
+   never a ramp value and never a raw hex. Sheet 23 governs.
+   ========================================================================= */
+
+:root {
+  /* ── Titanium · 13 steps · hue 75–85° · chroma ≤ 0.015 ─────────────────── */
+  --ti-00:  #F7F6F4;  /* Titanium White */
+  --ti-05:  #EFEDEA;
+  --ti-10:  #E3E0DB;
+  --ti-20:  #CFCBC4;
+  --ti-30:  #B4AFA7;
+  --ti-40:  #98938A;
+  --ti-50:  #7C776E;  /* pivot — legible on both canvases */
+  --ti-60:  #615D56;
+  --ti-70:  #4A4741;
+  --ti-80:  #35322E;
+  --ti-90:  #232120;
+  --ti-95:  #171615;
+  --ti-100: #0B0B0B;  /* Obsidian — never pure #000 */
+
+  /* ── Aurum · 10 steps · hue 67–81° · the single metal ──────────────────── */
+  --au-05: #FBF3E6;  /* Vellum    */
+  --au-10: #F6E7CE;  /* Bloom     */
+  --au-20: #EED6AE;  /* Sand      */
+  --au-30: #E3C089;  /* Champagne — dark-theme accent */
+  --au-40: #D4A96A;  /* Brass     */
+  --au-50: #C08F4E;  /* Aurum     — brand core */
+  --au-60: #A5763D;  /* Bronze    */
+  --au-70: #835C30;  /* Patina    — light-theme accent, AA for body */
+  --au-80: #5E4223;  /* Umber     */
+  --au-90: #3A2916;  /* Ember     */
+
+  /* ── Vapor · the cold axis · glass tint, depth, atmosphere only ────────── */
+  --v-10: #D0E4EA;
+  --v-30: #A9B6C4;
+  --v-50: #657F90;
+  --v-70: #445B6C;
+  --v-90: #232B33;
+
+  /* ── Signal · four hues, one meaning each · never decoration ───────────── */
+  --signal-nominal-dark:  #38D158;
+  --signal-nominal-light: #248A30;
+  --signal-caution-dark:  #FFD66A;
+  --signal-caution-light: #9A6D08;
+  --signal-abort-dark:    #FF453A;
+  --signal-abort-light:   #D70015;
+  --signal-link-dark:     #0A84FF;
+  --signal-link-light:    #0064D2;
+
+  /* ── The metal · one angle, six stops, one break ───────────────────────── */
+  --metal-aurum: linear-gradient(
+    168deg in oklab,
+    #FFFFFF 4%, #F6E7CE 22%, #8E8A82 46%,
+    #F7F6F4 58%, #C08F4E 76%, #4A4741 100%
+  );
+  --metal-solar: linear-gradient(
+    168deg in oklab,
+    #FFFDF8 4%, #FBE8D2 20%, #D4A96A 44%,
+    #FBF3E6 58%, #A5763D 78%, #3A2916 100%
+  );
+  --metal-vapor: linear-gradient(
+    168deg in oklab,
+    #FFFFFF 4%, #DDE4EA 22%, #657F90 46%,
+    #F2F6F9 58%, #A9B6C4 76%, #232B33 100%
+  );
+
+  /* ── Type · fourteen steps · a closed set ──────────────────────────────── */
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont,
+                  "Google Sans", "Helvetica Neue", system-ui, sans-serif;
+  --font-text:    "SF Pro Text", -apple-system, BlinkMacSystemFont,
+                  "Google Sans", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono:    "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --t-colossus:  700 96px/88px var(--font-display);
+  --t-display-1: 700 64px/64px var(--font-display);
+  --t-display-2: 700 48px/52px var(--font-display);
+  --t-title-1:   700 34px/40px var(--font-display);
+  --t-title-2:   600 28px/34px var(--font-display);
+  --t-title-3:   600 22px/28px var(--font-display);
+  --t-headline:  600 17px/22px var(--font-text);
+  --t-body:      400 17px/25px var(--font-text);
+  --t-callout:   400 16px/21px var(--font-text);
+  --t-subhead:   400 15px/20px var(--font-text);
+  --t-footnote:  400 13px/18px var(--font-text);
+  --t-caption:   400 12px/16px var(--font-text);
+  --t-micro:     500 11px/13px var(--font-text);
+  --t-overline:  600 10px/12px var(--font-text);
+
+  --tr-colossus:  -0.045em;
+  --tr-display-1: -0.038em;
+  --tr-display-2: -0.032em;
+  --tr-title-1:   -0.026em;
+  --tr-title-2:   -0.021em;
+  --tr-title-3:   -0.016em;
+  --tr-headline:  -0.010em;
+  --tr-body:      -0.004em;
+  --tr-callout:    0;
+  --tr-subhead:    0;
+  --tr-footnote:  +0.005em;
+  --tr-caption:   +0.010em;
+  --tr-micro:     +0.014em;
+  --tr-overline:  +0.160em;
+
+  /* ── Geometry · one base unit, every dimension 4 × n ───────────────────── */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm:  12px;  /* inline chips, code, swatches       */
+  --radius-lg:  20px;  /* cards, tiles, media, glass         */
+  --radius-xl:  28px;  /* sheets, modals, full-width         */
+  --radius-capsule: 999px;
+
+  --content-max: 1440px;
+
+  /* Capsule sizing · h / pad-x / label */
+  --cap-xs-h: 28px; --cap-xs-px: 12px; --cap-xs-label: 12px;
+  --cap-s-h:  36px; --cap-s-px:  16px; --cap-s-label:  15px;
+  --cap-m-h:  44px; --cap-m-px:  20px; --cap-m-label:  17px;
+  --cap-l-h:  52px; --cap-l-px:  24px; --cap-l-label:  17px;
+  --cap-xl-h: 64px; --cap-xl-px: 32px; --cap-xl-label: 22px;
+
+  /* ── Motion · six curves, six springs. Nothing eases linearly ──────────── */
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-enter:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit:     cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-glide:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-snap:     cubic-bezier(0.34, 1.26, 0.64, 1);
+
+  --dur-standard: 400ms;
+  --dur-enter:    520ms;
+  --dur-exit:     240ms;
+  --dur-glide:    300ms;
+  --dur-snap:     280ms;
+  --dur-press:     90ms;   /* feedback inside 100ms — sheet 10 */
+  --dur-theme:    320ms;   /* token-layer cross-fade only     */
+}
+
+/* ============================================================================
+   THE FIVE FINISHES
+   The same 32 values, five assignments. A product picks one and never mixes.
+   Geometry, type and motion are identical across all five — switching a finish
+   recalculates nothing and shifts nothing by a single pixel.
+   ========================================================================= */
+
+/* ── Black Titanium · DEFAULT · DARK ──────────────────────────────────────
+   Cinema, media, telemetry, night. The void with one warm light in it.      */
+[data-finish="black-titanium"] {
+  color-scheme: dark;
+
+  --surface-canvas:      var(--ti-100);
+  --surface-grouped:     var(--ti-95);
+  --surface-raised:      var(--ti-90);
+  --surface-glass:       rgb(247 246 244 / 0.09);
+  --surface-scrim:       rgb(11 11 11 / 0.56);
+
+  --content-primary:     var(--ti-00);
+  --content-secondary:   var(--ti-20);
+  --content-tertiary:    var(--ti-40);
+  --content-quaternary:  var(--ti-60);
+  --content-accent:      var(--au-30);
+  --content-on-accent:   var(--ti-100);
+
+  --stroke-hairline:     rgb(247 246 244 / 0.09);
+  --stroke-rim:          rgb(247 246 244 / 0.18);
+  --stroke-focus:        var(--au-30);
+  --fill-quiet:          rgb(247 246 244 / 0.07);
+  --fill-pressed:        rgb(247 246 244 / 0.14);
+  --fill-accent:         linear-gradient(180deg, var(--au-30), var(--au-40));
+  --fill-accent-solid:   var(--au-30);
+
+  --specular-top:        rgb(255 255 255 / 0.45);
+  --specular-bottom:     rgb(255 255 255 / 0.12);
+  --shadow-key:          rgb(11 11 11 / 0.68);
+  --glow-accent:         rgb(227 192 137 / 0.28);
+
+  --signal-nominal: var(--signal-nominal-dark);
+  --signal-caution: var(--signal-caution-dark);
+  --signal-abort:   var(--signal-abort-dark);
+  --signal-link:    var(--signal-link-dark);
+
+  --metal: var(--metal-aurum);
+
+  --e1: 0 1px 2px rgb(11 11 11 / 0.40), 0 0 1px rgb(11 11 11 / 0.24);
+  --e2: 0 4px 10px rgb(11 11 11 / 0.44), 0 1px 2px rgb(11 11 11 / 0.28);
+  --e3: 0 10px 24px rgb(11 11 11 / 0.52), 0 2px 5px rgb(11 11 11 / 0.36);
+  --e4: 0 18px 44px rgb(11 11 11 / 0.60), 0 4px 10px rgb(11 11 11 / 0.36);
+  --e5: 0 28px 78px rgb(11 11 11 / 0.70), 0 0 42px rgb(227 192 137 / 0.20);
+}
+
+/* ── Natural Titanium · DEFAULT · LIGHT ───────────────────────────────────
+   Documents, settings, commerce, daylight. Brushed paper-white with an
+   engraved dark label. Light themes halve every shadow.                     */
+[data-finish="natural-titanium"] {
+  color-scheme: light;
+
+  --surface-canvas:      var(--ti-00);
+  --surface-grouped:     var(--ti-05);
+  --surface-raised:      var(--ti-00);
+  --surface-glass:       rgb(247 246 244 / 0.62);
+  --surface-scrim:       rgb(11 11 11 / 0.34);
+
+  --content-primary:     var(--ti-100);
+  --content-secondary:   var(--ti-70);
+  --content-tertiary:    var(--ti-60);
+  --content-quaternary:  var(--ti-40);
+  --content-accent:      var(--au-70);
+  --content-on-accent:   var(--ti-00);
+
+  --stroke-hairline:     rgb(11 11 11 / 0.09);
+  --stroke-rim:          rgb(11 11 11 / 0.12);
+  --stroke-focus:        var(--au-70);
+  --fill-quiet:          rgb(11 11 11 / 0.05);
+  --fill-pressed:        rgb(11 11 11 / 0.11);
+  --fill-accent:         linear-gradient(180deg, var(--au-50), var(--au-70));
+  --fill-accent-solid:   var(--au-60);
+
+  --specular-top:        rgb(255 255 255 / 0.80);
+  --specular-bottom:     rgb(11 11 11 / 0.06);
+  --shadow-key:          rgb(11 11 11 / 0.14);
+  --glow-accent:         transparent;
+
+  --signal-nominal: var(--signal-nominal-light);
+  --signal-caution: var(--signal-caution-light);
+  --signal-abort:   var(--signal-abort-light);
+  --signal-link:    var(--signal-link-light);
+
+  --metal: var(--metal-aurum);
+
+  --e1: 0 1px 2px rgb(11 11 11 / 0.10), 0 0 1px rgb(11 11 11 / 0.06);
+  --e2: 0 4px 10px rgb(11 11 11 / 0.11), 0 1px 2px rgb(11 11 11 / 0.07);
+  --e3: 0 10px 24px rgb(11 11 11 / 0.13), 0 2px 5px rgb(11 11 11 / 0.09);
+  --e4: 0 18px 44px rgb(11 11 11 / 0.15), 0 4px 10px rgb(11 11 11 / 0.09);
+  --e5: 0 28px 78px rgb(11 11 11 / 0.18);
+}
+
+/* ── Desert Gold · CEREMONIAL · LIGHT ─────────────────────────────────────
+   Onboarding, upgrade, receipts, anniversaries. The one finish where gold
+   may be the ground.                                                        */
+[data-finish="desert-gold"] {
+  color-scheme: light;
+
+  --surface-canvas:      var(--au-05);
+  --surface-grouped:     var(--au-10);
+  --surface-raised:      #FFFDF8;
+  --surface-glass:       rgb(251 243 230 / 0.66);
+  --surface-scrim:       rgb(58 41 22 / 0.34);
+
+  --content-primary:     var(--au-90);
+  --content-secondary:   var(--au-80);
+  --content-tertiary:    var(--au-70);
+  --content-quaternary:  var(--au-60);
+  --content-accent:      var(--au-70);
+  --content-on-accent:   var(--au-05);
+
+  --stroke-hairline:     rgb(58 41 22 / 0.10);
+  --stroke-rim:          rgb(58 41 22 / 0.14);
+  --stroke-focus:        var(--au-70);
+  --fill-quiet:          rgb(58 41 22 / 0.05);
+  --fill-pressed:        rgb(58 41 22 / 0.11);
+  --fill-accent:         linear-gradient(180deg, var(--au-60), var(--au-80));
+  --fill-accent-solid:   var(--au-70);
+
+  --specular-top:        rgb(255 255 255 / 0.80);
+  --specular-bottom:     rgb(58 41 22 / 0.06);
+  --shadow-key:          rgb(58 41 22 / 0.14);
+  --glow-accent:         transparent;
+
+  --signal-nominal: var(--signal-nominal-light);
+  --signal-caution: var(--signal-caution-light);
+  --signal-abort:   var(--signal-abort-light);
+  --signal-link:    var(--signal-link-light);
+
+  --metal: var(--metal-solar);
+
+  --e1: 0 1px 2px rgb(58 41 22 / 0.10), 0 0 1px rgb(58 41 22 / 0.06);
+  --e2: 0 4px 10px rgb(58 41 22 / 0.11), 0 1px 2px rgb(58 41 22 / 0.07);
+  --e3: 0 10px 24px rgb(58 41 22 / 0.13), 0 2px 5px rgb(58 41 22 / 0.09);
+  --e4: 0 18px 44px rgb(58 41 22 / 0.15), 0 4px 10px rgb(58 41 22 / 0.09);
+  --e5: 0 28px 78px rgb(58 41 22 / 0.18);
+}
+
+/* ── White Titanium · HIGH-KEY · LIGHT ────────────────────────────────────
+   Editorial, gallery, long-form reading. No accent at all — hierarchy is
+   carried purely by type weight.                                            */
+[data-finish="white-titanium"] {
+  color-scheme: light;
+
+  --surface-canvas:      #FFFFFF;
+  --surface-grouped:     var(--ti-00);
+  --surface-raised:      #FFFFFF;
+  --surface-glass:       rgb(255 255 255 / 0.72);
+  --surface-scrim:       rgb(11 11 11 / 0.30);
+
+  --content-primary:     var(--ti-100);
+  --content-secondary:   var(--ti-70);
+  --content-tertiary:    var(--ti-60);
+  --content-quaternary:  var(--ti-40);
+  --content-accent:      var(--ti-100);   /* hierarchy by weight, not hue */
+  --content-on-accent:   #FFFFFF;
+
+  --stroke-hairline:     rgb(11 11 11 / 0.08);
+  --stroke-rim:          rgb(11 11 11 / 0.11);
+  --stroke-focus:        var(--ti-100);
+  --fill-quiet:          rgb(11 11 11 / 0.04);
+  --fill-pressed:        rgb(11 11 11 / 0.10);
+  --fill-accent:         linear-gradient(180deg, var(--ti-80), var(--ti-100));
+  --fill-accent-solid:   var(--ti-100);
+
+  --specular-top:        rgb(255 255 255 / 0.90);
+  --specular-bottom:     rgb(11 11 11 / 0.05);
+  --shadow-key:          rgb(11 11 11 / 0.12);
+  --glow-accent:         transparent;
+
+  --signal-nominal: var(--signal-nominal-light);
+  --signal-caution: var(--signal-caution-light);
+  --signal-abort:   var(--signal-abort-light);
+  --signal-link:    var(--signal-link-light);
+
+  --metal: none;
+
+  --e1: 0 1px 2px rgb(11 11 11 / 0.08), 0 0 1px rgb(11 11 11 / 0.05);
+  --e2: 0 4px 10px rgb(11 11 11 / 0.09), 0 1px 2px rgb(11 11 11 / 0.06);
+  --e3: 0 10px 24px rgb(11 11 11 / 0.11), 0 2px 5px rgb(11 11 11 / 0.07);
+  --e4: 0 18px 44px rgb(11 11 11 / 0.13), 0 4px 10px rgb(11 11 11 / 0.08);
+  --e5: 0 28px 78px rgb(11 11 11 / 0.16);
+}
+
+/* ── Vapor Chrome · IMMERSIVE · DARK ──────────────────────────────────────
+   Spatial, 3-D, launch experiences. Gold is suspended; cold light carries
+   the whole hierarchy.                                                      */
+[data-finish="vapor-chrome"] {
+  color-scheme: dark;
+
+  --surface-canvas:      var(--v-90);
+  --surface-grouped:     #1A2128;
+  --surface-raised:      #232B33;
+  --surface-glass:       rgb(208 228 234 / 0.08);
+  --surface-scrim:       rgb(20 26 31 / 0.58);
+
+  --content-primary:     #EFF5F8;
+  --content-secondary:   var(--v-10);
+  --content-tertiary:    var(--v-30);
+  --content-quaternary:  var(--v-50);
+  --content-accent:      var(--v-10);
+  --content-on-accent:   var(--v-90);
+
+  --stroke-hairline:     rgb(208 228 234 / 0.10);
+  --stroke-rim:          rgb(208 228 234 / 0.18);
+  --stroke-focus:        var(--v-10);
+  --fill-quiet:          rgb(208 228 234 / 0.07);
+  --fill-pressed:        rgb(208 228 234 / 0.14);
+  --fill-accent:         linear-gradient(180deg, var(--v-10), var(--v-30));
+  --fill-accent-solid:   var(--v-10);
+
+  --specular-top:        rgb(255 255 255 / 0.45);
+  --specular-bottom:     rgb(255 255 255 / 0.10);
+  --shadow-key:          rgb(15 20 24 / 0.70);
+  --glow-accent:         rgb(208 228 234 / 0.20);
+
+  --signal-nominal: var(--signal-nominal-dark);
+  --signal-caution: var(--signal-caution-dark);
+  --signal-abort:   var(--signal-abort-dark);
+  --signal-link:    var(--signal-link-dark);
+
+  --metal: var(--metal-vapor);
+
+  --e1: 0 1px 2px rgb(15 20 24 / 0.42), 0 0 1px rgb(15 20 24 / 0.26);
+  --e2: 0 4px 10px rgb(15 20 24 / 0.46), 0 1px 2px rgb(15 20 24 / 0.30);
+  --e3: 0 10px 24px rgb(15 20 24 / 0.54), 0 2px 5px rgb(15 20 24 / 0.38);
+  --e4: 0 18px 44px rgb(15 20 24 / 0.62), 0 4px 10px rgb(15 20 24 / 0.38);
+  --e5: 0 28px 78px rgb(15 20 24 / 0.72), 0 0 42px rgb(208 228 234 / 0.18);
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-canvas);
+  color: var(--content-primary);
+  font: var(--t-body);
+  letter-spacing: var(--tr-body);
+  font-optical-sizing: auto;
+  /* Finish is a costume; the skeleton never changes. Only the token layer
+     cross-fades — 320 ms, sheet 22. */
+  transition:
+    background-color var(--dur-theme) var(--ease-glide),
+    color            var(--dur-theme) var(--ease-glide);
+}
+
+/* Tabular figures everywhere a number can change, so digits never jitter. */
+.tabular,
+table,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--content-accent) 28%, transparent);
+  color: var(--content-primary);
+}
+
+/* One focus treatment. 2 pt offset, outside the shape, never inset. */
+:focus-visible {
+  outline: 3px solid var(--stroke-focus);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* ── Scrollbars — chrome recedes ──────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--content-quaternary) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--fill-quiet);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-capsule);
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--fill-pressed); }
+
+/* ============================================================================
+   THE SWEEP — the only permitted animation on the metal.
+   First paint only. Never on hover, never on scroll, never on a loop.
+   ========================================================================= */
+
+@keyframes aurum-sweep {
+  from { background-position: 0% 0%; }
+  to   { background-position: 0% 200%; }
+}
+
+.metal-mark {
+  background: var(--metal);
+  background-size: 100% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: aurum-sweep 2400ms var(--ease-enter) 1 both;
+}
+
+/* Glow is emitted light, not a shadow — and it is separate from the gradient. */
+.metal-glow { filter: drop-shadow(0 0 42px var(--glow-accent)); }
+
+@keyframes aurum-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes aurum-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Skeletons draw the destination before the data lands, so the wait is spent
+   orienting rather than doubting. Never a spinner where a count exists. */
+@keyframes aurum-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--fill-quiet) 25%,
+    var(--fill-pressed) 50%,
+    var(--fill-quiet) 75%
+  );
+  background-size: 200% 100%;
+  animation: aurum-shimmer 1600ms var(--ease-glide) infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================================
+   ACCESSIBILITY FLOOR
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Under reduced motion the mark simply appears at its rest position. */
+  .metal-mark { animation: none; background-position: 0% 100%; }
+}
+
+/* Increase Contrast promotes every label one rung, doubles rim opacity, and
+   replaces glass with an opaque fill. Sheet 24. */
+@media (prefers-contrast: more) {
+  [data-finish] {
+    --content-secondary:  var(--content-primary);
+    --content-tertiary:   var(--content-secondary);
+    --content-quaternary: var(--content-tertiary);
+    --stroke-rim:         var(--content-tertiary);
+    --surface-glass:      var(--surface-raised);
+  }
+  /* The alloy cannot meet the text floor, so it is replaced by flat content. */
+  .metal-mark {
+    background: none;
+    -webkit-text-fill-color: var(--content-primary);
+    color: var(--content-primary);
+    animation: none;
+  }
+}
+
+/* Screen-reader-only, but focusable for skip links. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sr-only:focus-visible {
+  position: fixed;
+  top: var(--space-4); left: var(--space-4);
+  width: auto; height: auto;
+  padding: var(--space-3) var(--space-5);
+  margin: 0; clip: auto;
+  background: var(--surface-raised);
+  color: var(--content-primary);
+  border-radius: var(--radius-capsule);
+  box-shadow: var(--e4);
+  z-index: 100;
+}

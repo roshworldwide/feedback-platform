@@ -1,14 +1,20 @@
 "use client";
 
 /**
- * The top bar.
+ * The top bar — an island, not a strip.
  *
- * 64 pt, glass, sticky. Where you are on the left; the three things you do from
- * anywhere on the right. Glass sits at one level only — the rail beneath it is
- * flat canvas, so nothing is blurred through a blur.
+ * 64 pt, glass, floating clear of every edge with a full capsule radius, so it
+ * reads as one object resting a few points above the canvas rather than a bar
+ * welded to the top of the screen. It holds still until something gives it a
+ * reason to move: the whole shape answers a search focus with a small snap
+ * forward, the same "something is happening in here" gesture a live island
+ * makes when it has news.
  *
- * "New campaign" is the one Aurum element on every application screen. Nothing
- * else here may be metal.
+ * The single breathing dot beside the wordmark is the one animation on this
+ * screen allowed to loop forever — it says the data behind this whole shell is
+ * live, once, and never competes with the metal for attention. "New campaign"
+ * stays the one Aurum element on every application screen; nothing else here
+ * may be metal, and the dot is titanium/signal, not gold.
  */
 
 import * as React from "react";
@@ -36,6 +42,7 @@ export function TopBar({
   const { crumbs, title } = trailFor(pathname);
 
   const [query, setQuery] = React.useState("");
+  const [focused, setFocused] = React.useState(false);
   const searchRef = React.useRef<HTMLInputElement>(null);
 
   // ⌘K / Ctrl-K puts the caret in the search field from anywhere.
@@ -62,18 +69,19 @@ export function TopBar({
     <header
       className="glass"
       style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 30,
         display: "flex",
         alignItems: "center",
         gap: "var(--space-4)",
         height: "64px",
         flex: "none",
-        paddingInline: "var(--space-5)",
-        border: 0,
-        borderBottom: "1px solid var(--stroke-hairline)",
-        borderRadius: 0,
+        paddingInline: "var(--space-6)",
+        borderRadius: "var(--radius-capsule)",
+        boxShadow: focused ? "var(--e5)" : "var(--e4)",
+        transform: focused ? "scale(1.008)" : "scale(1)",
+        transformOrigin: "center top",
+        animation: "aurum-enter var(--dur-enter) var(--ease-enter) both",
+        transition:
+          "box-shadow var(--dur-glide) var(--ease-glide), transform var(--dur-snap) var(--ease-snap)",
       }}
     >
       {showNavButton ? (
@@ -111,6 +119,36 @@ export function TopBar({
               gap: "var(--space-1)",
             }}
           >
+            <li
+              aria-hidden="true"
+              title="Live"
+              style={{
+                position: "relative",
+                display: "grid",
+                placeItems: "center",
+                width: "8px",
+                height: "8px",
+                marginRight: "var(--space-1)",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "var(--radius-capsule)",
+                  background: "var(--signal-nominal)",
+                  animation: "aurum-breathe 2400ms var(--ease-standard) infinite",
+                }}
+              />
+              <span
+                style={{
+                  width: "5px",
+                  height: "5px",
+                  borderRadius: "var(--radius-capsule)",
+                  background: "var(--signal-nominal)",
+                }}
+              />
+            </li>
             {crumbs.map((crumb, index) => (
               <li
                 key={`${crumb.label}-${index}`}
@@ -167,6 +205,8 @@ export function TopBar({
             ref={searchRef}
             value={query}
             onSearch={setQuery}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             aria-label="Search campaigns, clients and people"
             placeholder="Search"
             style={{ paddingRight: query ? undefined : "var(--space-16)" }}

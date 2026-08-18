@@ -472,6 +472,14 @@ table,
 }
 @keyframes aurum-fade { from { opacity: 0; } to { opacity: 1; } }
 
+/* A held breath, not a blink — the one loop on this canvas allowed to run
+   forever, and it is reserved for a single "this is live" signal. Never the
+   metal, never a second one on the same screen. */
+@keyframes aurum-breathe {
+  0%, 100% { transform: scale(1);    opacity: 0.85; }
+  50%      { transform: scale(1.35); opacity: 0.35; }
+}
+
 /* Skeletons draw the destination before the data lands, so the wait is spent
    orienting rather than doubting. Never a spinner where a count exists. */
 @keyframes aurum-shimmer {

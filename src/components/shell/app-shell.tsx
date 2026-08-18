@@ -90,11 +90,22 @@ export function AppShell({ profile, children }: AppShellProps) {
           background: "var(--surface-grouped)",
         }}
       >
-        <TopBar
-          showNavButton={drawer}
-          compact={drawer}
-          onOpenNav={() => setOpen(true)}
-        />
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            flex: "none",
+            padding: "var(--space-3) var(--space-4)",
+            background: "var(--surface-grouped)",
+          }}
+        >
+          <TopBar
+            showNavButton={drawer}
+            compact={drawer}
+            onOpenNav={() => setOpen(true)}
+          />
+        </div>
         <main
           id="main"
           style={{

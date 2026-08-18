@@ -1,52 +1,63 @@
 "use client";
 
 /**
- * The draft library.
+ * The draft library — a list, not a gallery.
  *
- * FIX: v1 had exactly three global draft slots. They were unnamed, unowned and
- * shared by everyone, the template gallery could only load into two of them,
- * and a colleague starting a fourth report silently overwrote your first. Here
- * a draft is a row: it has a name you chose, the client it is for, the
- * template it will wear, when it was last touched and who owns it — and there
- * may be as many as the work requires.
+ * A thumbnail told a person nothing a draft card needed to say: people scan
+ * drafts by name, client and when they last touched them, and several
+ * drafts share a template, so the image never discriminated between them.
+ * One compact row per draft says everything that matters, and ten of them
+ * fit without scrolling.
  *
- * The search is in the URL, so a filtered library is a shareable address and
- * the count under it is the true count for that search.
+ * Starters are a separate list under their own heading, never mixed into
+ * the count above — a starter is not a draft someone owns, it is the
+ * ten-item reference gallery `seed.sql` ships, readable by anyone and
+ * editable by no one. Opening one copies it; the row you click is never the
+ * row you end up editing.
  */
 
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, FilePlus2, SquarePen, Trash2 } from "lucide-react";
+import { Copy, FilePlus2, LayoutTemplate, SquarePen, Trash2 } from "lucide-react";
 import {
   Alert,
   Button,
   Card,
+  DataTable,
   EmptyState,
   Field,
   Pill,
   SearchInput,
+  Segmented,
   Sheet,
   TextInput,
   useToast,
+  type Column,
 } from "@/components/ui";
 import { templateMeta } from "@/lib/email/templates";
 import { fmtDateTime } from "@/lib/utils";
 import {
-  createDraftAction,
-  deleteDraftAction,
   duplicateDraftAction,
+  deleteDraftAction,
+  createDraftAction,
+  openStarterAction,
 } from "@/app/(app)/compose/actions";
 import { ClientSelect } from "./client-select";
-import { TemplateThumbnail } from "./template-thumbnail";
 import { stepHref, type ClientOption, type DraftCardView } from "./vocabulary";
+
+export type DraftOwnerFilter = "mine" | "everyone";
 
 export type DraftLibraryProps = {
   cards: DraftCardView[];
+  starters: DraftCardView[];
+  /** Null when the starter gallery read fine — a failed read is stated, not hidden. */
+  startersReason: string | null;
   total: number;
   /** True when more drafts exist than one read could return. Stated on screen. */
   incomplete: boolean;
   query: string;
+  owner: DraftOwnerFilter;
   /** The server's clock, captured once, so ages do not differ after hydration. */
   now: number;
   clients: ClientOption[] | null;
@@ -67,11 +78,19 @@ function ageFrom(now: number, iso: string): string {
   return fmtDateTime(iso);
 }
 
+const OWNER_OPTIONS = [
+  { value: "everyone" as const, label: "Everyone's" },
+  { value: "mine" as const, label: "Mine" },
+];
+
 export function DraftLibrary({
   cards,
+  starters,
+  startersReason,
   total,
   incomplete,
   query,
+  owner,
   now,
   clients,
   clientsReason,
@@ -89,22 +108,33 @@ export function DraftLibrary({
     setTerm(query);
   }
 
+  const applyParams = React.useCallback(
+    (patch: { q?: string; owner?: DraftOwnerFilter }) => {
+      const params = new URLSearchParams();
+      const nextQ = patch.q ?? query;
+      const nextOwner = patch.owner ?? owner;
+      if (nextQ) params.set("q", nextQ);
+      if (nextOwner !== "everyone") params.set("owner", nextOwner);
+      startTransition(() => {
+        const qs = params.toString();
+        router.replace(qs ? `/compose/drafts?${qs}` : "/compose/drafts", { scroll: false });
+      });
+    },
+    [query, owner, router],
+  );
+
   React.useEffect(() => {
     if (term.trim() === query) return;
-    const timer = window.setTimeout(() => {
-      const next = term.trim();
-      router.replace(next ? `/compose?q=${encodeURIComponent(next)}` : "/compose", {
-        scroll: false,
-      });
-    }, 320);
+    const timer = window.setTimeout(() => applyParams({ q: term.trim() }), 320);
     return () => window.clearTimeout(timer);
-  }, [term, query, router]);
+  }, [term, query, applyParams]);
 
   const [creating, setCreating] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [newClient, setNewClient] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [doomed, setDoomed] = React.useState<DraftCardView | null>(null);
+  const [openingStarter, setOpeningStarter] = React.useState<string | null>(null);
 
   function create() {
     if (newName.trim() === "") return;
@@ -156,11 +186,119 @@ export function DraftLibrary({
     });
   }
 
+  function startFromTemplate(card: DraftCardView) {
+    setOpeningStarter(card.id);
+    void openStarterAction(card.id).then((result) => {
+      setOpeningStarter(null);
+      if (!result.ok) {
+        toast({ message: result.message, tone: "abort" });
+        return;
+      }
+      router.push(stepHref(result.data.id, "content"));
+    });
+  }
+
+  const columns: Column<DraftCardView>[] = [
+    {
+      id: "name",
+      header: "Draft name",
+      required: true,
+      sortValue: (row) => row.name.toLowerCase(),
+      render: (row) => (
+        <Link
+          href={stepHref(row.id, "content")}
+          className="t-subhead"
+          style={{ color: "var(--content-primary)", textDecoration: "none", fontWeight: 600 }}
+        >
+          {row.name}
+        </Link>
+      ),
+    },
+    {
+      id: "client",
+      header: "Client",
+      sortValue: (row) => (row.clientName ?? "").toLowerCase(),
+      render: (row) => (
+        <span style={{ color: "var(--content-secondary)" }}>
+          {row.clientName ?? "No client yet"}
+        </span>
+      ),
+    },
+    {
+      id: "dl",
+      header: "DL number",
+      render: (row) => (
+        <span className="t-footnote tabular" style={{ color: "var(--content-tertiary)" }}>
+          {row.reportNumber ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "template",
+      header: "Template",
+      render: (row) => <Pill tone="neutral">{templateMeta(row.templateKey).name}</Pill>,
+    },
+    {
+      id: "edited",
+      header: "Edited",
+      sortValue: (row) => row.updatedAt,
+      render: (row) => (
+        <span className="t-footnote tabular" style={{ color: "var(--content-tertiary)" }}>
+          {ageFrom(now, row.updatedAt)}
+        </span>
+      ),
+    },
+    {
+      id: "owner",
+      header: "Owner",
+      render: (row) => (
+        <span style={{ color: "var(--content-secondary)" }}>{row.ownerName ?? "Unowned"}</span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      render: (row) => (
+        <div className="flex items-center justify-end" style={{ gap: "var(--space-1)" }}>
+          <Button
+            as={Link}
+            href={stepHref(row.id, "content")}
+            size="s"
+            variant="plain"
+            leadingIcon={SquarePen}
+            aria-label={`Open ${row.name}`}
+          >
+            Open
+          </Button>
+          <Button
+            size="s"
+            variant="plain"
+            leadingIcon={Copy}
+            aria-label={`Duplicate ${row.name}`}
+            onClick={() => duplicate(row)}
+          >
+            Duplicate
+          </Button>
+          <Button
+            size="s"
+            variant="plain"
+            leadingIcon={Trash2}
+            aria-label={`Delete ${row.name}`}
+            style={{ color: "var(--signal-abort)" }}
+            onClick={() => setDoomed(row)}
+          >
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section
       aria-label="Draft library"
       className="flex flex-col"
-      style={{ gap: "var(--space-5)", opacity: pending ? 0.72 : 1 }}
+      style={{ gap: "var(--space-6)", opacity: pending ? 0.72 : 1 }}
     >
       <div
         className="flex flex-wrap items-end justify-between"
@@ -176,6 +314,13 @@ export function DraftLibrary({
             />
           </Field>
         </div>
+
+        <Segmented
+          label="Whose drafts to show"
+          value={owner}
+          onValueChange={(value) => applyParams({ owner: value })}
+          options={OWNER_OPTIONS}
+        />
 
         {/* The one Aurum element on this screen. */}
         <Button
@@ -206,7 +351,9 @@ export function DraftLibrary({
             title={
               query
                 ? `No draft matches “${query}”`
-                : "No drafts yet"
+                : owner === "mine"
+                  ? "You have no drafts yet"
+                  : "No drafts yet"
             }
             description={
               query
@@ -217,145 +364,84 @@ export function DraftLibrary({
               label: query ? "Clear search" : "New draft",
               variant: "tinted",
               icon: query ? undefined : FilePlus2,
-              onClick: () => (query ? router.replace("/compose") : setCreating(true)),
+              onClick: () => (query ? router.replace("/compose/drafts") : setCreating(true)),
             }}
           />
         </Card>
       ) : (
-        <ul
-          className="grid"
-          style={{
-            listStyle: "none",
-            margin: 0,
-            padding: 0,
-            gap: "var(--space-4)",
-            gridTemplateColumns: "repeat(auto-fill, minmax(288px, 1fr))",
-          }}
-        >
-          {cards.map((card) => {
-            const meta = templateMeta(card.templateKey);
-            return (
-              <li key={card.id}>
-                <Card
-                  elevation="e1"
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    // Concentric: radius-lg outside, radius-sm on the child at
-                    // a space-2 gap.
-                    padding: "var(--space-2)",
-                  }}
-                >
-                  <Link
-                    href={stepHref(card.id, "content")}
-                    style={{
-                      display: "block",
-                      textDecoration: "none",
-                      color: "inherit",
-                      borderRadius: "var(--radius-sm)",
-                    }}
-                  >
-                    <TemplateThumbnail meta={meta} width={288} />
-                  </Link>
-
-                  <div
-                    className="flex flex-col"
-                    style={{
-                      gap: "var(--space-2)",
-                      padding: "var(--space-4) var(--space-3) var(--space-3)",
-                      flex: "1 1 auto",
-                    }}
-                  >
-                    <Link
-                      href={stepHref(card.id, "content")}
-                      className="t-headline"
-                      style={{
-                        color: "var(--content-primary)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {card.name}
-                    </Link>
-
-                    <p
-                      className="t-footnote"
-                      style={{ margin: 0, color: "var(--content-secondary)" }}
-                    >
-                      {card.clientName ?? "No client yet"}
-                      {card.reportTitle ? ` · ${card.reportTitle}` : ""}
-                    </p>
-
-                    <div
-                      className="flex flex-wrap items-center"
-                      style={{ gap: "var(--space-2)" }}
-                    >
-                      <Pill tone="neutral">{meta.name}</Pill>
-                      {card.mine ? null : <Pill tone="caution">Not yours</Pill>}
-                    </div>
-
-                    <p
-                      className="t-caption"
-                      style={{
-                        margin: "auto 0 0",
-                        color: "var(--content-tertiary)",
-                      }}
-                    >
-                      Edited {ageFrom(now, card.updatedAt)} ·{" "}
-                      {card.ownerName ?? "owner unknown"}
-                    </p>
-                  </div>
-
-                  <div
-                    className="flex flex-wrap items-center"
-                    style={{
-                      gap: "var(--space-2)",
-                      padding: "var(--space-3)",
-                      borderTop: "1px solid var(--stroke-hairline)",
-                    }}
-                  >
-                    <Button
-                      as={Link}
-                      href={stepHref(card.id, "content")}
-                      size="s"
-                      variant="tinted"
-                      leadingIcon={SquarePen}
-                    >
-                      Open
-                    </Button>
-                    <Button
-                      size="s"
-                      variant="plain"
-                      leadingIcon={Copy}
-                      aria-label={`Duplicate ${card.name}`}
-                      onClick={() => duplicate(card)}
-                    >
-                      Duplicate
-                    </Button>
-                    <Button
-                      size="s"
-                      variant="plain"
-                      leadingIcon={Trash2}
-                      aria-label={`Delete ${card.name}`}
-                      style={{ marginLeft: "auto", color: "var(--signal-abort)" }}
-                      onClick={() => setDoomed(card)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+        <DataTable
+          rows={cards}
+          columns={columns}
+          rowKey={(row) => row.id}
+          caption="Your drafts, most recently edited first."
+          total={total}
+          pageSizeOptions={[10, 25, 50]}
+        />
       )}
 
-      <p
-        className="t-footnote"
-        style={{ margin: 0, color: "var(--content-tertiary)" }}
-      >
-        Showing {cards.length} of {total} {total === 1 ? "draft" : "drafts"}.
-      </p>
+      <div className="flex flex-col" style={{ gap: "var(--space-3)" }}>
+        <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
+          <LayoutTemplate size={18} strokeWidth={1.75} style={{ color: "var(--content-tertiary)" }} />
+          <h2 className="t-headline" style={{ margin: 0, color: "var(--content-primary)" }}>
+            Start from a template
+          </h2>
+        </div>
+        <p className="t-footnote prose-measure" style={{ margin: 0, color: "var(--content-tertiary)" }}>
+          Ten references from Convin&rsquo;s own send history. Opening one makes
+          your own copy — nothing here is ever edited in place, so it stays a
+          clean starting point for the next person too.
+        </p>
+
+        {startersReason ? (
+          <p className="t-footnote" style={{ margin: 0, color: "var(--signal-abort)" }}>
+            Couldn&rsquo;t load the template gallery — {startersReason}.
+          </p>
+        ) : starters.length === 0 ? (
+          <p className="t-footnote" style={{ margin: 0, color: "var(--content-tertiary)" }}>
+            No templates on file.
+          </p>
+        ) : (
+          <div
+            style={{
+              border: "1px solid var(--stroke-rim)",
+              borderRadius: "var(--radius-lg)",
+              overflow: "hidden",
+              background: "var(--surface-raised)",
+            }}
+          >
+            {starters.map((starter, index) => (
+              <div
+                key={starter.id}
+                className="flex flex-wrap items-center justify-between"
+                style={{
+                  gap: "var(--space-3)",
+                  minHeight: "56px",
+                  padding: "var(--space-2) var(--space-4)",
+                  borderTop: index === 0 ? "none" : "1px solid var(--stroke-hairline)",
+                }}
+              >
+                <div className="flex flex-wrap items-center" style={{ gap: "var(--space-3)", minWidth: 0 }}>
+                  <span className="t-subhead" style={{ fontWeight: 600, color: "var(--content-primary)" }}>
+                    {starter.name}
+                  </span>
+                  <span className="t-footnote" style={{ color: "var(--content-tertiary)" }}>
+                    {starter.clientName ?? "No client"}
+                  </span>
+                  <Pill tone="neutral">{templateMeta(starter.templateKey).name}</Pill>
+                </div>
+                <Button
+                  size="s"
+                  variant="tinted"
+                  loading={openingStarter === starter.id}
+                  onClick={() => startFromTemplate(starter)}
+                >
+                  Use this template
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Sheet
         open={creating}

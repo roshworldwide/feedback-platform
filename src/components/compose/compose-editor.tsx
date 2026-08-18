@@ -19,7 +19,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Save } from "lucide-react";
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import { loadRecipientsAction, saveDraftAction } from "@/app/(app)/compose/actions";
-import { StepAiCheck } from "./step-ai-check";
 import { StepContent } from "./step-content";
 import { StepDesign } from "./step-design";
 import { StepRail } from "./step-rail";
@@ -221,7 +220,6 @@ export function ComposeEditor({
     return {
       content: contentOk,
       design: true,
-      "ai-check": true,
       recipients: chosen.some((person) => !person.isInternal),
       review: checks.every((check) => check.tone !== "fail"),
       send: false,
@@ -240,7 +238,7 @@ export function ComposeEditor({
       <header className="flex flex-col" style={{ gap: "var(--space-3)" }}>
         <Button
           as={Link}
-          href="/compose"
+          href="/compose/drafts"
           size="s"
           variant="plain"
           leadingIcon={ChevronLeft}
@@ -360,14 +358,11 @@ export function ComposeEditor({
                 onSeriesAdded={(created) =>
                   setSeries((current) => [...(current ?? []), created])
                 }
+                aiCheckAvailable={aiCheckAvailable}
               />
             ) : null}
 
             {step === "design" ? <StepDesign doc={doc} patch={patch} /> : null}
-
-            {step === "ai-check" ? (
-              <StepAiCheck doc={doc} patch={patch} aiCheckAvailable={aiCheckAvailable} />
-            ) : null}
 
             {step === "recipients" ? (
               <StepRecipients

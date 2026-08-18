@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeOnly, type RecipientChoice } from "./vocabulary";
+import { activeOnly, isMine, type RecipientChoice } from "./vocabulary";
 
 function person(overrides: Partial<RecipientChoice>): RecipientChoice {
   return {
@@ -44,5 +44,37 @@ describe("activeOnly — the unsubscribe/complaint exclusion", () => {
   it("returns an empty list when everyone has unsubscribed", () => {
     const list = activeOnly([person({ isActive: false }), person({ isActive: false })]);
     expect(list).toHaveLength(0);
+  });
+});
+
+describe("isMine — the ownership check `card.ownerId === me` used to be", () => {
+  const id = "3f6a2b10-0c1e-4a9d-9e2b-1d7c6f0a5b3e";
+
+  it("is true when the owner and the signed-in person are the same id", () => {
+    expect(isMine(id, id)).toBe(true);
+  });
+
+  it("is false for two different real ids", () => {
+    expect(isMine(id, "a1b2c3d4-0000-0000-0000-000000000000")).toBe(false);
+  });
+
+  it("is false when nobody owns the row, even for a signed-in person", () => {
+    expect(isMine(null, id)).toBe(false);
+  });
+
+  it("is false when nobody is signed in, even for an owned row", () => {
+    expect(isMine(id, null)).toBe(false);
+  });
+
+  it("is false when both sides are null — no shared absence counts as a match", () => {
+    expect(isMine(null, null)).toBe(false);
+  });
+
+  it("compares by coerced string, so a stray non-string id can never false-match", () => {
+    // The exact regression this guards: `getSessionProfile()`'s `id` used to
+    // come back typed `any` from an ungenerated query builder, so nothing
+    // caught it if that ever stopped being a string.
+    expect(isMine(String(1), String(1))).toBe(true);
+    expect(isMine("1", "01")).toBe(false);
   });
 });

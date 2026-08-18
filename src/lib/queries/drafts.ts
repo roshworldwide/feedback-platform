@@ -71,9 +71,12 @@ export type DraftCard = {
   templateKey: TemplateKey;
   /** The report title inside the payload, where one has been typed. */
   reportTitle: string | null;
+  reportNumber: string | null;
   updatedAt: string;
   ownerId: string | null;
   ownerName: string | null;
+  /** A seeded reference draft — visible to everyone, editable by no one. */
+  isStarter: boolean;
 };
 
 export type DraftLibrary = {
@@ -84,7 +87,7 @@ export type DraftLibrary = {
 };
 
 const DRAFT_COLUMNS =
-  "id, name, client_id, series_id, payload, owner_id, created_at, updated_at";
+  "id, name, client_id, series_id, payload, owner_id, is_starter, created_at, updated_at";
 
 function toCard(row: Row, clientName: string | null, ownerName: string | null): DraftCard {
   const payload = record(row.payload);
@@ -95,24 +98,78 @@ function toCard(row: Row, clientName: string | null, ownerName: string | null): 
     clientName,
     templateKey: templateOf(row.payload),
     reportTitle: nullableStr(payload?.title),
+    reportNumber: nullableStr(payload?.reportNumber),
     updatedAt: str(row.updated_at),
     ownerId: nullableStr(row.owner_id),
     ownerName,
+    isStarter: row.is_starter === true,
   };
 }
 
+async function withNames(supabase: SupabaseClient, rows: Row[]): Promise<DraftCard[]> {
+  const clientIds = [...new Set(rows.map((row) => nullableStr(row.client_id)))].filter(
+    (value): value is string => Boolean(value),
+  );
+  const ownerIds = [...new Set(rows.map((row) => nullableStr(row.owner_id)))].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  const [clients, owners] = await Promise.all([
+    clientIds.length
+      ? supabase.from("clients").select("id, name").in("id", clientIds)
+      : Promise.resolve({ data: [], error: null }),
+    ownerIds.length
+      ? supabase.from("profiles").select("id, full_name, email").in("id", ownerIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (clients.error) throw clients.error;
+  if (owners.error) throw owners.error;
+
+  const clientById = new Map<string, string>();
+  for (const row of (clients.data ?? []) as unknown as Row[]) {
+    clientById.set(str(row.id), str(row.name));
+  }
+  const ownerById = new Map<string, string>();
+  for (const row of (owners.data ?? []) as unknown as Row[]) {
+    ownerById.set(str(row.id), str(row.full_name) || str(row.email));
+  }
+
+  return rows.map((row) => {
+    const clientId = nullableStr(row.client_id);
+    const ownerId = nullableStr(row.owner_id);
+    return toCard(
+      row,
+      clientId ? (clientById.get(clientId) ?? null) : null,
+      ownerId ? (ownerById.get(ownerId) ?? null) : null,
+    );
+  });
+}
+
+export type DraftLibraryFilter = {
+  /** Restricts the list to one owner — the "Mine" side of the filter. */
+  ownerId?: string | null;
+};
+
 /**
- * The named drafts, newest edit first. The search matches the draft's own name
- * — a person looks for the name they gave it, not for a field inside it.
+ * The named, non-starter drafts, newest edit first. The search matches the
+ * draft's own name — a person looks for the name they gave it, not for a
+ * field inside it. Starters are read separately by `listStarterDrafts` —
+ * they belong under their own heading, never mixed into this count.
  */
-export async function listDrafts(query: string): Promise<QueryResult<DraftLibrary>> {
+export async function listDrafts(
+  query: string,
+  filter: DraftLibraryFilter = {},
+): Promise<QueryResult<DraftLibrary>> {
   try {
     const supabase = await db();
 
     let request = supabase
       .from("drafts")
       .select(DRAFT_COLUMNS, { count: "exact" })
+      .eq("is_starter", false)
       .order("updated_at", { ascending: false });
+
+    if (filter.ownerId) request = request.eq("owner_id", filter.ownerId);
 
     const search = safeLike(query);
     if (search) request = request.ilike("name", `%${search}%`);
@@ -121,45 +178,59 @@ export async function listDrafts(query: string): Promise<QueryResult<DraftLibrar
     if (error) throw error;
 
     const rows = (data ?? []) as unknown as Row[];
-    const clientIds = [...new Set(rows.map((row) => nullableStr(row.client_id)))].filter(
-      (value): value is string => Boolean(value),
-    );
-    const ownerIds = [...new Set(rows.map((row) => nullableStr(row.owner_id)))].filter(
-      (value): value is string => Boolean(value),
-    );
-
-    const [clients, owners] = await Promise.all([
-      clientIds.length
-        ? supabase.from("clients").select("id, name").in("id", clientIds)
-        : Promise.resolve({ data: [], error: null }),
-      ownerIds.length
-        ? supabase.from("profiles").select("id, full_name, email").in("id", ownerIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (clients.error) throw clients.error;
-    if (owners.error) throw owners.error;
-
-    const clientById = new Map<string, string>();
-    for (const row of (clients.data ?? []) as unknown as Row[]) {
-      clientById.set(str(row.id), str(row.name));
-    }
-    const ownerById = new Map<string, string>();
-    for (const row of (owners.data ?? []) as unknown as Row[]) {
-      ownerById.set(str(row.id), str(row.full_name) || str(row.email));
-    }
-
-    const cards = rows.map((row) => {
-      const clientId = nullableStr(row.client_id);
-      const ownerId = nullableStr(row.owner_id);
-      return toCard(
-        row,
-        clientId ? (clientById.get(clientId) ?? null) : null,
-        ownerId ? (ownerById.get(ownerId) ?? null) : null,
-      );
-    });
+    const cards = await withNames(supabase, rows);
 
     const total = typeof count === "number" ? count : cards.length;
     return { ok: true, data: { cards, total, incomplete: total > cards.length } };
+  } catch (error) {
+    return { ok: false, reason: reasonOf(error) };
+  }
+}
+
+/**
+ * The starter gallery — a small, fixed set, so it is read whole rather than
+ * paginated. Grouped under its own heading in the library, below a person's
+ * own drafts; opening one copies it (see `openStarterAction`) rather than
+ * editing the row this returns.
+ */
+export async function listStarterDrafts(): Promise<QueryResult<DraftCard[]>> {
+  try {
+    const supabase = await db();
+    const { data, error } = await supabase
+      .from("drafts")
+      .select(DRAFT_COLUMNS)
+      .eq("is_starter", true)
+      .order("name", { ascending: true })
+      .limit(MAX_ROWS);
+    if (error) throw error;
+
+    const rows = (data ?? []) as unknown as Row[];
+    return { ok: true, data: await withNames(supabase, rows) };
+  } catch (error) {
+    return { ok: false, reason: reasonOf(error) };
+  }
+}
+
+/**
+ * The one row `/compose` needs to redirect straight into an editor: the
+ * caller's own most-recently-edited draft, nothing else selected. Starters
+ * are excluded — they are never "mine" until opened, which copies them.
+ */
+export async function mostRecentEditableDraftId(
+  ownerId: string,
+): Promise<QueryResult<string | null>> {
+  try {
+    const supabase = await db();
+    const { data, error } = await supabase
+      .from("drafts")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .eq("is_starter", false)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return { ok: true, data: data ? str((data as unknown as Row).id) : null };
   } catch (error) {
     return { ok: false, reason: reasonOf(error) };
   }
@@ -170,9 +241,12 @@ export async function listDrafts(query: string): Promise<QueryResult<DraftLibrar
 export type DraftRecord = {
   id: string;
   name: string;
+  clientId: string | null;
+  seriesId: string | null;
   ownerId: string | null;
   ownerName: string | null;
   updatedAt: string;
+  isStarter: boolean;
   /** Raw payload. The caller normalises it through `parseComposeDoc`. */
   payload: unknown;
 };
@@ -196,9 +270,12 @@ export async function getDraft(id: string): Promise<QueryResult<DraftRecord | nu
       data: {
         id: str(row.id),
         name: str(row.name) || "Untitled draft",
+        clientId: nullableStr(row.client_id),
+        seriesId: nullableStr(row.series_id),
         ownerId: nullableStr(row.owner_id),
         ownerName: owner ? str(owner.full_name) || str(owner.email) : null,
         updatedAt: str(row.updated_at),
+        isStarter: row.is_starter === true,
         payload: row.payload,
       },
     };

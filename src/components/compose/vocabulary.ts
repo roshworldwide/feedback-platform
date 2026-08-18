@@ -23,7 +23,6 @@ import {
 export const COMPOSE_STEPS = [
   "content",
   "design",
-  "ai-check",
   "recipients",
   "review",
   "send",
@@ -38,10 +37,16 @@ export type StepMeta = {
   hint: string;
 };
 
+/**
+ * Five stops, each a required decision. AI Check polishes copy that is
+ * already written rather than deciding anything new, so it lives as an
+ * action inside Content ("Polish this draft") instead of a numbered stop —
+ * a rail entry reads as a required checkpoint, and skipping an optional one
+ * pushed Recipients and Review a place further away for no reason.
+ */
 export const STEP_META: readonly StepMeta[] = [
   { step: "content", label: "Content", hint: "Who it is for and what it says" },
   { step: "design", label: "Design", hint: "Which template carries it" },
-  { step: "ai-check", label: "AI Check", hint: "Polish tone and structure, optional" },
   { step: "recipients", label: "Recipients", hint: "Who receives it" },
   { step: "review", label: "Review", hint: "How it will land" },
   { step: "send", label: "Send", hint: "Now, later, or every month" },
@@ -764,11 +769,25 @@ export type DraftCardView = {
   clientName: string | null;
   templateKey: TemplateKey;
   reportTitle: string | null;
+  reportNumber: string | null;
   updatedAt: string;
   ownerName: string | null;
   /** True when the signed-in person may rename, overwrite or delete it. */
   mine: boolean;
+  isStarter: boolean;
 };
+
+/**
+ * Same-shape ownership check, both sides coerced to `string` explicitly
+ * rather than trusted to already be one — `getSessionProfile()`'s `id`
+ * traveled through an untyped query builder until it was given an explicit
+ * return type, and a future regression there would silently turn this back
+ * into an `any === string` comparison TypeScript cannot catch. `null`
+ * never equals `null` here: no signed-in person owns an ownerless row.
+ */
+export function isMine(ownerId: string | null, meId: string | null): boolean {
+  return ownerId !== null && meId !== null && String(ownerId) === String(meId);
+}
 
 /* ── Action results ───────────────────────────────────────────────────────── */
 

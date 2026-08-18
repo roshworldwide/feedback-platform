@@ -15,7 +15,7 @@
  */
 
 import * as React from "react";
-import { Paperclip, Plus, Sparkles, Trash2, Upload } from "lucide-react";
+import { Paperclip, Plus, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import {
   Button,
   Card,
@@ -24,6 +24,7 @@ import {
   CardTitle,
   Field,
   Select,
+  Sheet,
   Switch,
   TextInput,
   useToast,
@@ -36,6 +37,7 @@ import {
 } from "@/app/(app)/compose/actions";
 import { BodyEditor } from "./body-editor";
 import { ClientSelect } from "./client-select";
+import { StepAiCheck } from "./step-ai-check";
 import {
   DEFAULT_FEEDBACK_QUESTION,
   MAX_IMAGES,
@@ -60,6 +62,8 @@ export type StepContentProps = {
   seriesReason: string | null;
   /** Adds a newly created series to the list without a round trip. */
   onSeriesAdded: (series: SeriesOption) => void;
+  /** False renders "Polish this draft" disabled with a one-line explanation. */
+  aiCheckAvailable: boolean;
 };
 
 const FREQUENCIES: SelectOption[] = [
@@ -93,6 +97,7 @@ export function StepContent({
   series,
   seriesReason,
   onSeriesAdded,
+  aiCheckAvailable,
 }: StepContentProps) {
   const { toast } = useToast();
   const [suggesting, setSuggesting] = React.useState(false);
@@ -101,6 +106,7 @@ export function StepContent({
   const [seriesFrequency, setSeriesFrequency] = React.useState("monthly");
   const [seriesBusy, setSeriesBusy] = React.useState(false);
   const [uploading, setUploading] = React.useState<string | null>(null);
+  const [polishing, setPolishing] = React.useState(false);
 
   const forClient = React.useMemo(
     () => (series ?? []).filter((item) => item.clientId === doc.clientId),
@@ -415,20 +421,35 @@ export function StepContent({
         <>
           <Field label="Body" hint="Written to the contact by name where you use the variable.">
             <div className="flex flex-col" style={{ gap: "var(--space-2)" }}>
-              <Button
-                size="s"
-                variant="plain"
-                leadingIcon={Sparkles}
-                style={{ alignSelf: "flex-start" }}
-                onClick={() => patch({ bodyMd: dlTemplateBody() })}
-              >
-                Use the DL template
-              </Button>
+              <div className="flex flex-wrap items-center" style={{ gap: "var(--space-2)" }}>
+                <Button
+                  size="s"
+                  variant="plain"
+                  leadingIcon={Sparkles}
+                  onClick={() => patch({ bodyMd: dlTemplateBody() })}
+                >
+                  Use the DL template
+                </Button>
+                <Button
+                  size="s"
+                  variant="plain"
+                  leadingIcon={WandSparkles}
+                  disabled={!aiCheckAvailable}
+                  onClick={() => setPolishing(true)}
+                >
+                  Polish this draft
+                </Button>
+              </div>
               <BodyEditor
                 id="compose-body"
                 value={doc.bodyMd}
                 onChange={(bodyMd) => patch({ bodyMd })}
               />
+              {aiCheckAvailable ? null : (
+                <p className="t-caption" style={{ margin: 0, color: "var(--content-tertiary)" }}>
+                  Polish is off — no API key is configured.
+                </p>
+              )}
             </div>
           </Field>
 
@@ -776,6 +797,16 @@ export function StepContent({
           </div>
         </>,
       )}
+
+      <Sheet
+        open={polishing}
+        onClose={() => setPolishing(false)}
+        title="Polish this draft"
+        description="Tone, spacing and structure only. Every number in the body is checked and guaranteed unchanged — nothing is applied until you accept it below."
+        side="right"
+      >
+        <StepAiCheck doc={doc} patch={patch} aiCheckAvailable={aiCheckAvailable} />
+      </Sheet>
     </div>
   );
 }

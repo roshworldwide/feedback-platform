@@ -15,13 +15,130 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { Library, LogOut } from "lucide-react";
 import { Avatar, Pill, Spinner } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { NAV_ITEMS, roleLabel, type ShellProfile } from "./nav";
 
 export const RAIL_WIDTH = 240;
 export const RAIL_WIDTH_COLLAPSED = 72;
+
+/** How long a touch has to hold before it counts as a long-press, not a tap. */
+const LONG_PRESS_MS = 500;
+
+/**
+ * The one shortcut this rail carries beyond "go there": right-click or
+ * long-press Compose to jump straight to the draft library instead of the
+ * most-recent-draft redirect `/compose` itself resolves to. Scoped to this
+ * single item rather than built as a general menu primitive — there is
+ * exactly one destination it ever offers.
+ */
+function ComposeQuickMenu({
+  onNavigate,
+  children,
+}: {
+  onNavigate?: () => void;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const [at, setAt] = React.useState<{ x: number; y: number } | null>(null);
+  const pressTimer = React.useRef<number | null>(null);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+
+  function open(x: number, y: number) {
+    setAt({ x, y });
+  }
+  function close() {
+    setAt(null);
+  }
+
+  function startPress(touch: React.Touch) {
+    const x = touch.clientX;
+    const y = touch.clientY;
+    pressTimer.current = window.setTimeout(() => open(x, y), LONG_PRESS_MS);
+  }
+  function cancelPress() {
+    if (pressTimer.current !== null) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }
+
+  React.useEffect(() => {
+    if (!at) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [at]);
+
+  return (
+    <span
+      style={{ display: "contents" }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        open(event.clientX, event.clientY);
+      }}
+      onTouchStart={(event) => startPress(event.touches[0])}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+    >
+      {children}
+      {at ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Compose shortcuts"
+          style={{
+            position: "fixed",
+            left: at.x,
+            top: at.y,
+            zIndex: 70,
+            minWidth: "180px",
+            padding: "var(--space-2)",
+            background: "var(--surface-raised)",
+            border: "1px solid var(--stroke-rim)",
+            borderRadius: "var(--radius-sm)",
+            boxShadow: "var(--e3)",
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              close();
+              onNavigate?.();
+              router.push("/compose/drafts");
+            }}
+            className="flex w-full items-center t-subhead"
+            style={{
+              gap: "var(--space-3)",
+              minHeight: "44px",
+              padding: "var(--space-2) var(--space-3)",
+              borderRadius: "var(--radius-sm)",
+              background: "transparent",
+              border: 0,
+              color: "var(--content-primary)",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <Library size={16} strokeWidth={1.75} aria-hidden="true" />
+            All drafts
+          </button>
+        </div>
+      ) : null}
+    </span>
+  );
+}
 
 function SignOut({ collapsed }: { collapsed: boolean }) {
   const router = useRouter();
@@ -190,13 +307,20 @@ export function Sidebar({
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
-            return (
+            const isCompose = item.href === "/compose";
+            const row = (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
-                  title={collapsed ? `${item.label} — ${item.hint}` : undefined}
+                  title={
+                    collapsed
+                      ? `${item.label} — ${item.hint}`
+                      : isCompose
+                        ? `${item.label} — right-click for all drafts`
+                        : undefined
+                  }
                   style={{
                     position: "relative",
                     display: "flex",
@@ -246,6 +370,14 @@ export function Sidebar({
                   )}
                 </Link>
               </li>
+            );
+
+            return isCompose ? (
+              <ComposeQuickMenu key={item.href} onNavigate={onNavigate}>
+                {row}
+              </ComposeQuickMenu>
+            ) : (
+              row
             );
           })}
         </ul>

@@ -1,63 +1,27 @@
 /**
- * The skeleton draws the destination — the search bar, then the grid of draft
- * cards in their final proportions — so the wait is spent orienting rather
- * than doubting. No spinner stands where a count will be.
+ * `/compose` never renders a screen of its own — it resolves the most
+ * recently edited draft and redirects into it, or creates one. This is only
+ * ever visible for the moment that lookup takes; it draws the shape of the
+ * editor it is about to land in, not a spinner with nothing to count.
  */
 
 import { Skeleton } from "@/components/ui";
 
-export default function ComposeLoading() {
+export default function ComposeRedirectLoading() {
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-wrap items-start"
       style={{ gap: "var(--space-6)" }}
       role="status"
-      aria-label="Loading your drafts"
+      aria-label="Opening your most recent draft"
     >
-      <div className="flex flex-col" style={{ gap: "var(--space-2)" }}>
+      <div style={{ flex: "1 1 240px", maxWidth: "296px" }}>
+        <Skeleton height="360px" shape="lg" />
+      </div>
+      <div className="flex flex-col" style={{ flex: "999 1 560px", gap: "var(--space-4)", minWidth: 0 }}>
         <Skeleton height="var(--space-8)" width="180px" />
-        <Skeleton height="var(--space-4)" width="360px" />
-      </div>
-
-      <div
-        className="flex flex-wrap items-end justify-between"
-        style={{ gap: "var(--space-4)" }}
-      >
-        <Skeleton height="var(--cap-m-h)" width="min(420px, 100%)" shape="capsule" />
-        <Skeleton height="var(--cap-m-h)" width="148px" shape="capsule" />
-      </div>
-
-      <div
-        className="grid"
-        style={{
-          gap: "var(--space-4)",
-          gridTemplateColumns: "repeat(auto-fill, minmax(288px, 1fr))",
-        }}
-      >
-        {Array.from({ length: 6 }, (_, index) => (
-          <div
-            key={index}
-            className="flex flex-col"
-            style={{
-              gap: "var(--space-3)",
-              padding: "var(--space-2)",
-              background: "var(--surface-raised)",
-              border: "1px solid var(--stroke-rim)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--e1)",
-            }}
-          >
-            <Skeleton height="168px" shape="sm" />
-            <div
-              className="flex flex-col"
-              style={{ gap: "var(--space-2)", padding: "0 var(--space-3) var(--space-3)" }}
-            >
-              <Skeleton height="var(--space-5)" width="70%" />
-              <Skeleton height="var(--space-4)" width="52%" />
-              <Skeleton height="var(--space-3)" width="40%" />
-            </div>
-          </div>
-        ))}
+        <Skeleton height="240px" shape="lg" />
+        <Skeleton height="160px" shape="lg" />
       </div>
     </div>
   );

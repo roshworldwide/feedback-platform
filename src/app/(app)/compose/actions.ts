@@ -95,6 +95,68 @@ const PREVIEW_TOKEN = "0".repeat(48);
 
 /* ── Draft library ────────────────────────────────────────────────────────── */
 
+/**
+ * The write only — no `revalidatePath`. Next.js refuses a cache revalidation
+ * triggered synchronously during a Server Component's own render, which is
+ * exactly how `/compose` creates a fresh draft when a person has none: it
+ * calls this from inside its render, not from a client interaction. That
+ * redirect already lands on a brand-new URL, which renders fresh regardless
+ * — nothing here needs the router cache invalidated to be seen.
+ */
+async function insertDraft(
+  name: string,
+  clientId: string | null,
+): Promise<{ id: string; name: string; updatedAt: string; ownerId: string; ownerEmail: string }> {
+  const person = await actor();
+  if (!person) throw new Error(NO_SESSION);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .insert({
+      name,
+      client_id: clientId,
+      owner_id: person.id,
+      payload: { clientId },
+    })
+    .select("id, name, updated_at")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const row = data as unknown as Row;
+  return {
+    id: str(row.id),
+    name: str(row.name),
+    updatedAt: str(row.updated_at),
+    ownerId: person.id,
+    ownerEmail: person.email,
+  };
+}
+
+/** Used only from a Server Component render — see `insertDraft`. */
+export async function createDraftForRedirect(
+  name: string,
+  clientId: string | null,
+): Promise<ActionResult<SavedDraft>> {
+  const trimmed = name.trim() || "Untitled draft";
+  try {
+    const created = await insertDraft(trimmed, clientId);
+    await recordAudit({
+      actorId: created.ownerId,
+      actorEmail: created.ownerEmail,
+      action: "draft.created",
+      entityType: "drafts",
+      entityId: created.id,
+      summary: `Started ${trimmed}`,
+    });
+    return { ok: true, data: { id: created.id, name: created.name, updatedAt: created.updatedAt } };
+  } catch (cause) {
+    return failed(`The draft was not created — ${reasonOf(cause)}. Nothing was changed.`);
+  }
+}
+
+/** Client-triggered — the "New draft" sheet in the library. */
 export async function createDraftAction(
   name: string,
   clientId: string | null,
@@ -105,39 +167,20 @@ export async function createDraftAction(
   }
 
   try {
-    const person = await actor();
-    if (!person) return failed(NO_SESSION);
-
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("drafts")
-      .insert({
-        name: trimmed,
-        client_id: clientId,
-        owner_id: person.id,
-        payload: { clientId },
-      })
-      .select("id, name, updated_at")
-      .single();
-
-    if (error) {
-      return failed(`The draft was not created — ${error.message}. Nothing was changed.`);
-    }
-
-    const row = data as unknown as Row;
+    const created = await insertDraft(trimmed, clientId);
     await recordAudit({
-      actorId: person.id,
-      actorEmail: person.email,
+      actorId: created.ownerId,
+      actorEmail: created.ownerEmail,
       action: "draft.created",
       entityType: "drafts",
-      entityId: str(row.id),
+      entityId: created.id,
       summary: `Started ${trimmed}`,
     });
 
-    revalidatePath("/compose");
+    revalidatePath("/compose/drafts");
     return {
       ok: true,
-      data: { id: str(row.id), name: str(row.name), updatedAt: str(row.updated_at) },
+      data: { id: created.id, name: created.name, updatedAt: created.updatedAt },
     };
   } catch (cause) {
     return failed(`The draft was not created — ${reasonOf(cause)}. Nothing was changed.`);
@@ -264,6 +307,98 @@ export async function duplicateDraftAction(
     };
   } catch (cause) {
     return failed(`The draft was not duplicated — ${reasonOf(cause)}.`);
+  }
+}
+
+/**
+ * A starter is a seeded reference — visible to everyone, writable by no one
+ * (RLS refuses the update/delete outright, whoever the row's `owner_id`
+ * happens to be). Opening one never edits the starter itself: it creates a
+ * personal copy owned by whoever opened it and hands back that copy's id,
+ * so the caller lands in an editor they can actually type in.
+ *
+ * The write only — no `revalidatePath`. See `insertDraft` above: the render
+ * that lands directly on a starter's URL calls this from inside itself.
+ */
+async function copyStarter(
+  id: string,
+): Promise<{ id: string; name: string; updatedAt: string; ownerId: string; ownerEmail: string }> {
+  const person = await actor();
+  if (!person) throw new Error(NO_SESSION);
+
+  const supabase = await createClient();
+  const { data: source, error: readError } = await supabase
+    .from("drafts")
+    .select("name, client_id, series_id, payload, is_starter")
+    .eq("id", id)
+    .eq("is_starter", true)
+    .maybeSingle();
+
+  if (readError) throw new Error(readError.message);
+  if (!source) throw new Error("That template no longer exists, so nothing was opened.");
+
+  const row = source as unknown as Row;
+  const { data, error } = await supabase
+    .from("drafts")
+    .insert({
+      name: str(row.name) || "Untitled draft",
+      client_id: nullableStr(row.client_id),
+      series_id: nullableStr(row.series_id),
+      payload: row.payload ?? {},
+      owner_id: person.id,
+    })
+    .select("id, name, updated_at")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const created = data as unknown as Row;
+  return {
+    id: str(created.id),
+    name: str(created.name),
+    updatedAt: str(created.updated_at),
+    ownerId: person.id,
+    ownerEmail: person.email,
+  };
+}
+
+async function auditStarterCopy(created: {
+  id: string;
+  ownerId: string;
+  ownerEmail: string;
+}, sourceId: string, sourceName: string) {
+  await recordAudit({
+    actorId: created.ownerId,
+    actorEmail: created.ownerEmail,
+    action: "draft.started_from_template",
+    entityType: "drafts",
+    entityId: created.id,
+    summary: `Started ${sourceName} from the template gallery`,
+    diff: { from: sourceId },
+  });
+}
+
+/** Used only from a Server Component render — see `copyStarter`. */
+export async function openStarterForRedirect(id: string): Promise<ActionResult<SavedDraft>> {
+  try {
+    const created = await copyStarter(id);
+    await auditStarterCopy(created, id, created.name);
+    return { ok: true, data: { id: created.id, name: created.name, updatedAt: created.updatedAt } };
+  } catch (cause) {
+    return failed(`That template could not be opened — ${reasonOf(cause)}.`);
+  }
+}
+
+/** Client-triggered — "Use this template" in the library. */
+export async function openStarterAction(id: string): Promise<ActionResult<SavedDraft>> {
+  try {
+    const created = await copyStarter(id);
+    await auditStarterCopy(created, id, created.name);
+
+    revalidatePath("/compose/drafts");
+    return { ok: true, data: { id: created.id, name: created.name, updatedAt: created.updatedAt } };
+  } catch (cause) {
+    return failed(`That template could not be opened — ${reasonOf(cause)}.`);
   }
 }
 

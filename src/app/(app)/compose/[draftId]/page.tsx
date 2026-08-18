@@ -10,11 +10,12 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ComposeEditor } from "@/components/compose/compose-editor";
 import { CouldntLoad } from "@/components/campaigns/couldnt-load";
 import { firstParam, type SearchParams } from "@/components/campaigns/vocabulary";
 import {
+  isMine,
   parseComposeDoc,
   parseStep,
   type ClientOption,
@@ -28,6 +29,7 @@ import {
   listComposeSeries,
 } from "@/lib/queries/drafts";
 import { getSessionProfile } from "@/lib/supabase/server";
+import { openStarterForRedirect } from "../actions";
 
 export const metadata: Metadata = { title: "Compose" };
 
@@ -58,6 +60,24 @@ export default async function ComposeDraftPage({
     );
   }
   if (!draft.data) notFound();
+
+  // A starter is never edited in place — landing on its URL directly (a
+  // bookmark, a stale link) copies it the same way opening it from the
+  // library does, and continues into the copy. `redirect` throws, so nothing
+  // below this ever runs against the starter row itself.
+  if (draft.data.isStarter) {
+    const opened = await openStarterForRedirect(draftId);
+    if (!opened.ok) {
+      return (
+        <CouldntLoad
+          what="this template"
+          reason={opened.message}
+          next="Nothing was changed. Go back to the library and try again."
+        />
+      );
+    }
+    redirect(`/compose/${opened.data.id}?step=${step}`);
+  }
 
   const clientOptions: ClientOption[] | null = clients.ok
     ? clients.data.map((client) => ({
@@ -91,7 +111,7 @@ export default async function ComposeDraftPage({
       series={seriesOptions}
       seriesReason={series.ok ? null : series.reason}
       provider={emailProvider()}
-      mine={me !== null && draft.data.ownerId === me}
+      mine={isMine(draft.data.ownerId, me)}
       aiCheckAvailable={aiAvailable()}
     />
   );

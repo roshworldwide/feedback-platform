@@ -803,7 +803,6 @@ export function StepContent({
         onClose={() => setPolishing(false)}
         title="Polish this draft"
         description="Tone, spacing and structure only. Every number in the body is checked and guaranteed unchanged — nothing is applied until you accept it below."
-        side="right"
       >
         <StepAiCheck doc={doc} patch={patch} aiCheckAvailable={aiCheckAvailable} />
       </Sheet>

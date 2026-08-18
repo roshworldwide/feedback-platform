@@ -193,7 +193,6 @@ export function TeamPanel({
         onClose={() => setInviteOpen(false)}
         title="Invite someone"
         description="They receive an email invitation. Nobody gets access until they accept it and sign in."
-        side="right"
         footer={
           <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
             <Button variant="plain" onClick={() => setInviteOpen(false)}>

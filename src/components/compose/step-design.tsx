@@ -197,7 +197,6 @@ export function StepDesign({ doc, patch }: StepDesignProps) {
         onClose={() => setPreviewing(null)}
         title={previewing ? `${templateMeta(previewing).name} at full size` : "Preview"}
         description="Rendered through the same function that sends. Links inside are inert."
-        side="right"
         footer={
           previewing ? (
             <>

@@ -107,7 +107,6 @@ export function ContactFormSheet({
           ? "Changes apply the next time a report goes to this account."
           : "One person, added to this client's list."
       }
-      side="right"
       footer={
         <>
           <Button variant="glass" onClick={onClose}>

@@ -3,8 +3,14 @@
 /**
  * Sheet and Alert.
  *
- * Sheet is the working surface: radius-xl, e4, thick glass, a grabber at the
- * top so the gesture is advertised before it is needed.
+ * Sheet is the working surface: a centered, fully opaque card — radius-xl,
+ * e5. It used to slide in from an edge dressed in glass, which reads fine
+ * for a single chrome layer like the top bar but breaks the moment a second
+ * surface (another glass layer, a dense table underneath) shows through it:
+ * two blurred, near-transparent layers stacked on a phone-width viewport
+ * compost into exactly the illegible double-exposure a form should never be
+ * read through. A dialog holding real input is read, not glimpsed — it gets
+ * the same opaque `--surface-raised` Alert already used.
  *
  * Alert is the stop. Two actions at most — the shape of the props makes a third
  * impossible. The title is a question, the body states the consequence in
@@ -142,7 +148,6 @@ export type SheetProps = {
   children: React.ReactNode;
   /** Actions live at the foot, out of the scroll. */
   footer?: React.ReactNode;
-  side?: "bottom" | "right";
   className?: string;
 };
 
@@ -153,7 +158,6 @@ export function Sheet({
   description,
   children,
   footer,
-  side = "bottom",
   className,
 }: SheetProps) {
   const { present, entered } = usePresence(open);
@@ -163,111 +167,102 @@ export function Sheet({
 
   if (!present) return null;
 
-  const hiddenTransform = side === "bottom" ? "translateY(100%)" : "translateX(100%)";
-
   return (
     <Portal>
       <div style={{ position: "fixed", inset: 0, zIndex: 60 }}>
         <Scrim entered={entered} onClick={onClose} />
         <div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          tabIndex={-1}
-          className={cn("glass flex flex-col", className)}
           style={{
             position: "fixed",
-            left: side === "bottom" ? 0 : undefined,
-            right: 0,
-            bottom: 0,
-            top: side === "right" ? 0 : undefined,
-            width: side === "right" ? "min(480px, 100vw)" : undefined,
-            maxHeight: side === "bottom" ? "min(88vh, 900px)" : undefined,
-            borderRadius:
-              side === "bottom"
-                ? "var(--radius-xl) var(--radius-xl) 0 0"
-                : "var(--radius-xl) 0 0 var(--radius-xl)",
-            boxShadow: "var(--e4)",
-            color: "var(--content-primary)",
-            transform: entered ? "none" : hiddenTransform,
-            transition: entered
-              ? "transform var(--dur-enter) var(--ease-enter)"
-              : "transform var(--dur-exit) var(--ease-exit)",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            padding: "var(--space-5)",
+            pointerEvents: "none",
           }}
         >
-          {side === "bottom" ? (
-            <div style={{ display: "grid", placeItems: "center", paddingTop: "var(--space-2)" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: "36px",
-                  height: "5px",
-                  borderRadius: "var(--radius-capsule)",
-                  background: "var(--content-quaternary)",
-                }}
-              />
-            </div>
-          ) : null}
-
           <div
-            className="flex items-start justify-between"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            className={cn("flex flex-col", className)}
             style={{
-              gap: "var(--space-4)",
-              padding: "var(--space-4) var(--space-5) var(--space-3)",
+              pointerEvents: "auto",
+              width: "min(560px, calc(100vw - 2 * var(--space-5)))",
+              maxHeight: "min(85vh, 760px)",
+              background: "var(--surface-raised)",
+              border: "1px solid var(--stroke-rim)",
+              borderRadius: "var(--radius-xl)",
+              boxShadow: "var(--e5)",
+              color: "var(--content-primary)",
+              opacity: entered ? 1 : 0,
+              transform: entered ? "scale(1)" : "scale(0.96)",
+              transition: entered
+                ? "opacity var(--dur-enter) var(--ease-enter), transform var(--dur-enter) var(--ease-enter)"
+                : "opacity var(--dur-exit) var(--ease-exit), transform var(--dur-exit) var(--ease-exit)",
             }}
           >
-            <div style={{ minWidth: 0 }}>
-              <h2
-                id={titleId}
-                className="t-title-3"
-                style={{ margin: 0, color: "var(--content-primary)" }}
-              >
-                {title}
-              </h2>
-              {description ? (
-                <p
-                  className="t-footnote"
-                  style={{
-                    margin: "var(--space-1) 0 0",
-                    color: "var(--content-secondary)",
-                  }}
-                >
-                  {description}
-                </p>
-              ) : null}
-            </div>
-            <Button
-              size="s"
-              variant="plain"
-              leadingIcon={X}
-              aria-label="Close"
-              onClick={onClose}
-            />
-          </div>
-
-          <div
-            style={{
-              overflow: "auto",
-              padding: "0 var(--space-5) var(--space-5)",
-              flex: "1 1 auto",
-            }}
-          >
-            {children}
-          </div>
-
-          {footer ? (
             <div
-              className="flex flex-wrap items-center justify-end"
+              className="flex items-start justify-between"
               style={{
-                gap: "var(--space-3)",
-                padding: "var(--space-4) var(--space-5)",
-                borderTop: "1px solid var(--stroke-hairline)",
+                gap: "var(--space-4)",
+                padding: "var(--space-4) var(--space-5) var(--space-3)",
               }}
             >
-              {footer}
+              <div style={{ minWidth: 0 }}>
+                <h2
+                  id={titleId}
+                  className="t-title-3"
+                  style={{ margin: 0, color: "var(--content-primary)" }}
+                >
+                  {title}
+                </h2>
+                {description ? (
+                  <p
+                    className="t-footnote"
+                    style={{
+                      margin: "var(--space-1) 0 0",
+                      color: "var(--content-secondary)",
+                    }}
+                  >
+                    {description}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                size="s"
+                variant="plain"
+                leadingIcon={X}
+                aria-label="Close"
+                onClick={onClose}
+              />
             </div>
-          ) : null}
+
+            <div
+              style={{
+                overflow: "auto",
+                padding: "0 var(--space-5) var(--space-5)",
+                flex: "1 1 auto",
+              }}
+            >
+              {children}
+            </div>
+
+            {footer ? (
+              <div
+                className="flex flex-wrap items-center justify-end"
+                style={{
+                  gap: "var(--space-3)",
+                  padding: "var(--space-4) var(--space-5)",
+                  borderTop: "1px solid var(--stroke-hairline)",
+                }}
+              >
+                {footer}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </Portal>
@@ -335,7 +330,7 @@ export function Alert({
             tabIndex={-1}
             style={{
               pointerEvents: "auto",
-              width: "min(420px, 100%)",
+              width: "min(420px, calc(100vw - 2 * var(--space-5)))",
               padding: "var(--space-6)",
               display: "flex",
               flexDirection: "column",

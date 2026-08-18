@@ -97,7 +97,6 @@ export function NewClientButton() {
         onClose={() => setOpen(false)}
         title="New client"
         description="Company, a way to reach them, and however many addresses matter. Status and owner can be set on its page next."
-        side="right"
         footer={
           <>
             <Button variant="glass" onClick={() => setOpen(false)}>

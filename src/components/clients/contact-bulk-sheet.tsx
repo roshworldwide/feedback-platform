@@ -87,7 +87,6 @@ export function ContactBulkSheet({
       onClose={onClose}
       title="Paste a list"
       description="Comma- or newline-separated. “Name <email>” works, or an address on its own."
-      side="right"
       footer={
         <>
           <Button variant="glass" onClick={onClose}>

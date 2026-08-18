@@ -448,7 +448,6 @@ export function DraftLibrary({
         onClose={() => setCreating(false)}
         title="New draft"
         description="Name it now so you and everyone else can find it later."
-        side="right"
         footer={
           <>
             <Button variant="glass" onClick={() => setCreating(false)}>

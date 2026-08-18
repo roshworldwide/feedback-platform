@@ -62,32 +62,48 @@ rewritten.
 
 ## 4 · Cron
 
-`vercel.json` declares two scheduled invocations:
+Two routes exist to be called on a schedule:
 
-| Route | Schedule | Does |
+| Route | Intended schedule | Does |
 |---|---|---|
 | `/api/cron/send-scheduled` | every 5 minutes | Sends every campaign whose `scheduled_for` has passed |
 | `/api/cron/run-rules` | every 15 minutes | Evaluates the three automation rules, records a finding per new violation |
 
-Both authenticate with `CRON_SECRET` as a bearer token — set it in the
-production environment. Vercel's own Cron Jobs automatically send
-`Authorization: Bearer $CRON_SECRET` when the env var of that exact name is
-set, so no header configuration is needed beyond setting the variable.
-Deploying on something other than Vercel means configuring that header
-yourself, or triggering the routes with `curl -X POST -H "Authorization:
-Bearer $CRON_SECRET" https://<domain>/api/cron/send-scheduled` on your own
-scheduler — both routes accept GET (what Vercel Cron sends) and POST
-(convenient for a manual trigger) identically.
+**`vercel.json` currently declares no `crons` block.** Vercel's Hobby plan
+only permits cron jobs that run at most once a day, which the 5-minute
+schedule above violates outright — a deploy with that `crons` entry present
+is rejected before it ever builds. Nothing calls these routes right now.
+Pick one before relying on scheduled sends:
+
+- **Upgrade the Vercel project to Pro**, then add back:
+  ```json
+  { "crons": [
+    { "path": "/api/cron/send-scheduled", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/run-rules",       "schedule": "*/15 * * * *" }
+  ]}
+  ```
+- **An external scheduler** — a GitHub Actions workflow on a `schedule:`
+  trigger, cron-job.org, or Supabase `pg_cron` calling `net.http_post` — each
+  hitting the two routes on the cadence above.
+
+Either way, both authenticate with `CRON_SECRET` as a bearer token — set it
+in the production environment. Vercel's own Cron Jobs (Pro path) automatically
+send `Authorization: Bearer $CRON_SECRET` when the env var of that exact name
+is set, so no header configuration is needed beyond setting the variable. An
+external scheduler needs that header configured explicitly: `curl -X POST -H
+"Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/send-scheduled`
+— both routes accept GET (what Vercel Cron sends) and POST (convenient for a
+manual trigger or most third-party schedulers) identically.
 
 **How to verify it ran:** both routes return a JSON summary
 (`{claimed, sent, failed, skipped}` for send-scheduled;
 `{rulesActive, examined, notified, alreadyNotified}` for run-rules) — check
-the deployment's Cron logs in the Vercel dashboard, or the function's own
-logs for `[cron/send-scheduled]` / `[cron/run-rules]` lines. A campaign that
-should have sent but shows `scheduled_for` in the past and `status =
-'scheduled'` still means the cron isn't reaching the route at all — check the
-Vercel project's Cron Jobs tab for delivery failures before suspecting the
-route logic itself.
+the function's own logs for `[cron/send-scheduled]` / `[cron/run-rules]`
+lines (on the Pro/Vercel-Cron path, also check the deployment's Cron Jobs tab
+for delivery failures). A campaign that should have sent but shows
+`scheduled_for` in the past and `status = 'scheduled'` means either the
+scheduler isn't reaching the route at all, or no scheduler is configured yet
+— see the two options above.
 
 ## 5 · First-send checklist
 

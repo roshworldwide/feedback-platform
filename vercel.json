@@ -1,12 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/send-scheduled",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/run-rules",
-      "schedule": "*/15 * * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_comment": "No `crons` entry: the Vercel account this deploys under is on the Hobby plan, which only permits once-daily cron jobs — incompatible with send-scheduled needing to run every few minutes. /api/cron/send-scheduled and /api/cron/run-rules still exist and are still auth-gated by CRON_SECRET; nothing currently calls them. Wire up an external scheduler (GitHub Actions on a schedule, cron-job.org, Supabase pg_cron via net.http_post, or upgrading this Vercel project to Pro and restoring a `crons` block here) to actually fire scheduled sends and automation rules. See docs/GO-LIVE.md."
 }

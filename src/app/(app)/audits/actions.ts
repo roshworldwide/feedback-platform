@@ -22,6 +22,7 @@
  * parallel send loop here the way Compose's live-editing flow needs one.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { env, internalDomains } from "@/lib/env";
@@ -33,8 +34,10 @@ import { parseCsv, fuzzyMatchColumns } from "@/lib/audits/csv";
 import { fetchSheetCsv } from "@/lib/audits/sheets";
 import { computeDeterministic, computeParameterFrequency, normalizeCanonicalRow } from "@/lib/audits/compute";
 import { buildNarrative } from "@/lib/audits/narrative";
-import { buildReportDocument } from "@/lib/audits/report-document";
+import { buildReportDocument, type ReportSection } from "@/lib/audits/report-document";
 import { renderAuditReportPdf } from "@/lib/audits/pdf";
+import { renderReportEmail } from "@/lib/email/render";
+import { sendEmail } from "@/lib/email/send";
 import { COLUMN_ROLES } from "@/lib/audits/types";
 import type {
   CanonicalRow,
@@ -610,6 +613,80 @@ export async function loadAuditRecipientsAction(clientId: string): Promise<Actio
 
 export type SentAuditReport = { campaignId: string; attempted: number; accepted: number; failed: number };
 
+type RunForSend = {
+  id: string;
+  client_id: unknown;
+  name: unknown;
+  period_label: unknown;
+  status: unknown;
+  column_map: unknown;
+  metrics: unknown;
+  narrative: unknown;
+  clients: unknown;
+};
+
+async function loadRunForSend(supabase: SupabaseClient, runId: string): Promise<RunForSend | { error: string }> {
+  const { data, error } = await supabase
+    .from("audit_runs")
+    .select("id, client_id, name, period_label, status, column_map, metrics, narrative, clients:client_id ( name )")
+    .eq("id", runId)
+    .maybeSingle();
+  if (error) return { error: `Couldn't read this run — ${error.message}.` };
+  if (!data) return { error: "This audit run no longer exists." };
+  return data as unknown as RunForSend;
+}
+
+/**
+ * Builds the report sections, generates the PDF (uploaded to the same public
+ * bucket every other campaign attachment already uses — a recipient must be
+ * able to open it from an email with no login), and drafts the summary body.
+ * Shared between the real send and the test send, so a test copy is built
+ * exactly the way the real one is, not a separate approximation.
+ */
+async function buildAuditArtifacts(input: {
+  supabase: SupabaseClient;
+  personId: string;
+  runId: string;
+  runName: string;
+  clientName: string;
+  periodLabel: string;
+  columnMap: ColumnMap;
+  metrics: ComputedMetrics;
+  narrative: NarrativeResult;
+  reportUrl: string | null;
+  pdfSuffix?: string;
+}): Promise<{ ok: true; sections: ReportSection[]; pdfName: string; pdfUrl: string | null; summaryBody: string } | { ok: false; message: string }> {
+  const { supabase, personId, runId, clientName, periodLabel, columnMap, metrics, narrative, reportUrl, pdfSuffix = "call-audit" } = input;
+
+  const { rows } = await loadCanonicalRows(runId, columnMap);
+  const sections = buildReportDocument({ rows, computed: metrics, narrative });
+
+  const pdfBuffer = await renderAuditReportPdf({ clientName, periodLabel, sections });
+  const pdfName = `${clientName.replace(/[^a-zA-Z0-9]+/g, "-")}-${pdfSuffix}.pdf`;
+  const pdfPath = `${personId}/${Date.now().toString(36)}-${pdfName}`;
+  const { error: pdfUploadError } = await supabase.storage
+    .from("report-media")
+    .upload(pdfPath, pdfBuffer, { contentType: "application/pdf", upsert: false });
+  if (pdfUploadError) return { ok: false, message: `The PDF could not be generated — ${pdfUploadError.message}.` };
+
+  const { data: pdfUrlData } = supabase.storage.from("report-media").getPublicUrl(pdfPath);
+  const pdfUrl = str((pdfUrlData as unknown as Row)?.publicUrl) || null;
+
+  const accuracyPct = metrics.overall.accuracyRatePct;
+  const summaryBody = [
+    "Hi {{contact_first_name}},",
+    "",
+    `The call audit report${periodLabel ? ` for ${periodLabel}` : ""} is ready.`,
+    "",
+    `${metrics.overall.totalAudited} calls audited, ${metrics.overall.accurate} accurate` +
+      (accuracyPct === null ? "." : ` — ${accuracyPct}% overall.`),
+    "",
+    reportUrl ? "The full report is linked below, with the PDF attached." : "The PDF is attached below.",
+  ].join("\n");
+
+  return { ok: true, sections, pdfName, pdfUrl, summaryBody };
+}
+
 export async function sendAuditReportAction(
   runId: string,
   chosen: RecipientChoice[],
@@ -619,15 +696,10 @@ export async function sendAuditReportAction(
     if (!person) return failed(NO_SESSION);
 
     const supabase = await createClient();
-    const { data: runData, error: runError } = await supabase
-      .from("audit_runs")
-      .select("id, client_id, name, period_label, status, column_map, metrics, narrative, clients:client_id ( name )")
-      .eq("id", runId)
-      .maybeSingle();
-    if (runError) return failed(`Couldn't read this run — ${runError.message}.`);
-    if (!runData) return failed("This audit run no longer exists.");
+    const loaded = await loadRunForSend(supabase, runId);
+    if ("error" in loaded) return failed(loaded.error);
+    const run = loaded as unknown as Row;
 
-    const run = runData as unknown as Row;
     const clientId = str(run.client_id);
     const clientName = str((run.clients as Row | null)?.name);
     if (!clientId || !clientName) return failed("This run has no client attached, so nothing was sent.");
@@ -653,36 +725,22 @@ export async function sendAuditReportAction(
     const narrative = (run.narrative ?? {}) as unknown as NarrativeResult;
     const columnMap = (run.column_map ?? {}) as ColumnMap;
     const periodLabel = str(run.period_label);
-
-    const { rows } = await loadCanonicalRows(runId, columnMap);
-    const sections = buildReportDocument({ rows, computed: metrics, narrative });
-
-    // Generated fresh at send time and uploaded to the same public bucket
-    // every other campaign attachment already uses — a recipient must be
-    // able to open it from an email with no login.
-    const pdfBuffer = await renderAuditReportPdf({ clientName, periodLabel, sections });
-    const pdfName = `${clientName.replace(/[^a-zA-Z0-9]+/g, "-")}-call-audit.pdf`;
-    const pdfPath = `${person.id}/${Date.now().toString(36)}-${pdfName}`;
-    const { error: pdfUploadError } = await supabase.storage
-      .from("report-media")
-      .upload(pdfPath, pdfBuffer, { contentType: "application/pdf", upsert: false });
-    if (pdfUploadError) return failed(`The PDF could not be generated — ${pdfUploadError.message}. Nothing was sent.`);
-
-    const { data: pdfUrlData } = supabase.storage.from("report-media").getPublicUrl(pdfPath);
-    const pdfUrl = str((pdfUrlData as unknown as Row)?.publicUrl);
     const reportUrl = `${env.NEXT_PUBLIC_APP_URL}/r/${runId}`;
 
-    const accuracyPct = metrics.overall.accuracyRatePct;
-    const summaryBody = [
-      "Hi {{contact_first_name}},",
-      "",
-      `The call audit report${periodLabel ? ` for ${periodLabel}` : ""} is ready.`,
-      "",
-      `${metrics.overall.totalAudited} calls audited, ${metrics.overall.accurate} accurate` +
-        (accuracyPct === null ? "." : ` — ${accuracyPct}% overall.`),
-      "",
-      "The full report is linked below, with the PDF attached.",
-    ].join("\n");
+    const artifacts = await buildAuditArtifacts({
+      supabase,
+      personId: person.id,
+      runId,
+      runName: str(run.name),
+      clientName,
+      periodLabel,
+      columnMap,
+      metrics,
+      narrative,
+      reportUrl,
+    });
+    if (!artifacts.ok) return failed(`${artifacts.message} Nothing was sent.`);
+    const { pdfName, pdfUrl, summaryBody } = artifacts;
 
     const { data: created, error: campaignError } = await supabase
       .from("campaigns")
@@ -753,6 +811,91 @@ export async function sendAuditReportAction(
     return { ok: true, data: { campaignId, attempted: outcome.attempted, accepted: outcome.accepted, failed: outcome.failed } };
   } catch (cause) {
     return failed(`Nothing was sent — ${reasonOf(cause)}.`);
+  }
+}
+
+/**
+ * A copy addressed to the signed-in person only, marked as a test in the
+ * email itself — the same guarantee Compose's "Send test to me" makes. It
+ * writes no campaign and no recipient row, so it can never reach a client
+ * contact and never touches this run's status. This is the one exercise-the-
+ * real-send-path route this feature should ever need for verification.
+ */
+export async function sendTestAuditReportAction(runId: string): Promise<ActionResult<string>> {
+  try {
+    const person = await actor();
+    if (!person) return failed(NO_SESSION);
+
+    const supabase = await createClient();
+    const loaded = await loadRunForSend(supabase, runId);
+    if ("error" in loaded) return failed(loaded.error);
+    const run = loaded as unknown as Row;
+
+    const clientName = str((run.clients as Row | null)?.name) || "this client";
+    if (run.status !== "computed" && run.status !== "sent") {
+      return failed("Compute the report before sending a test — go back to the Compute step.");
+    }
+
+    const metrics = (run.metrics ?? {}) as unknown as ComputedMetrics;
+    const narrative = (run.narrative ?? {}) as unknown as NarrativeResult;
+    const columnMap = (run.column_map ?? {}) as ColumnMap;
+    const periodLabel = str(run.period_label);
+
+    const artifacts = await buildAuditArtifacts({
+      supabase,
+      personId: person.id,
+      runId,
+      runName: str(run.name),
+      clientName,
+      periodLabel,
+      columnMap,
+      metrics,
+      narrative,
+      // No hosted-report link: /r/[id] only renders once the run is actually
+      // sent, and a test send must never flip that status.
+      reportUrl: null,
+      pdfSuffix: "call-audit-test",
+    });
+    if (!artifacts.ok) return failed(`The test was not sent — ${artifacts.message}`);
+    const { pdfName, pdfUrl, summaryBody } = artifacts;
+
+    const rendered = renderReportEmail({
+      templateKey: "convin-premium",
+      appUrl: env.NEXT_PUBLIC_APP_URL,
+      // A hex-shaped token that resolves to no recipient — preview links are inert, same as Compose's.
+      token: "0".repeat(48),
+      clientName,
+      contactFirstName: (person.fullName || person.email).trim().split(/\s+/)[0],
+      reportNumber: null,
+      reportTitle: str(run.name) ? `${str(run.name)} — Call Audit` : "Call Audit Report",
+      periodLabel,
+      subject: `Call audit report${periodLabel ? ` — ${periodLabel}` : ""}`,
+      bodyMd: summaryBody,
+      reportUrl: null,
+      attachment: pdfUrl ? { name: pdfName, url: pdfUrl } : null,
+      feedback: { enabled: false, question: "", askComment: false },
+      signature: {
+        name: person.fullName || person.email,
+        title: "Client Reporting",
+        org: "Convin Data Labs",
+        replyTo: person.email,
+      },
+      isTest: true,
+    });
+
+    const result = await sendEmail({
+      to: person.email,
+      subject: `[Test] ${rendered.subject}`,
+      html: rendered.html,
+      text: rendered.text,
+      replyTo: person.email,
+      headers: { ...rendered.headers, "X-CDL-Test": "1" },
+    });
+    if (!result.ok) return failed(`The test was not sent — ${result.error}. Nothing about the run changed.`);
+
+    return { ok: true, data: person.email };
+  } catch (cause) {
+    return failed(`The test was not sent — ${reasonOf(cause)}.`);
   }
 }
 

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { Check, Send, X } from "lucide-react";
 import { Button, Card, CardBody, CardHeader, CardTitle, Checkbox, Spinner, useToast } from "@/components/ui";
 import { recipientSentence, sendPreflight, summariseRecipients, type RecipientChoice } from "./vocabulary";
-import { loadAuditRecipientsAction, sendAuditReportAction } from "@/app/(app)/audits/actions";
+import { loadAuditRecipientsAction, sendAuditReportAction, sendTestAuditReportAction } from "@/app/(app)/audits/actions";
 import type { AuditRunStatus } from "@/lib/audits/types";
 
 export type StepSendProps = {
@@ -32,6 +32,7 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
   const [contactsReason, setContactsReason] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [sending, setSending] = React.useState(false);
+  const [sendingTest, setSendingTest] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -43,9 +44,11 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
         return;
       }
       setContacts(result.data);
-      // Every active client (non-internal) contact is pre-selected — the
-      // common case is "send to everyone on the account."
-      setSelected(new Set(result.data.filter((c) => c.isActive && !c.isInternal).map((c) => c.key)));
+      // Nobody is pre-selected. A report already went to two real contacts
+      // once because "select every active client contact by default" made
+      // a live-verification test send indistinguishable from a deliberate
+      // one — recipients for something this consequential are chosen by
+      // hand, every time, not defaulted into.
     });
     return () => {
       cancelled = true;
@@ -81,6 +84,18 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
     router.push(`/campaigns/${result.data.campaignId}`);
   }
 
+  async function sendTest() {
+    setSendingTest(true);
+    const result = await sendTestAuditReportAction(runId);
+    setSendingTest(false);
+    toast({
+      message: result.ok
+        ? `Test copy sent to ${result.data}. It's marked as a test in the email and writes no campaign, so it can never reach a real recipient.`
+        : result.message,
+      tone: result.ok ? "nominal" : "abort",
+    });
+  }
+
   if (status === "sent" && campaignId) {
     return (
       <Card elevation="e1" accent="nominal">
@@ -99,6 +114,22 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
 
   return (
     <div className="flex flex-col" style={{ gap: "var(--space-5)" }}>
+      <Card elevation="e1">
+        <CardHeader>
+          <CardTitle
+            as="h2"
+            description="A copy addressed to you, marked as a test in the email itself. It writes no campaign and no recipient, so it can never reach a client contact — the safe way to see exactly what this report looks like before it goes out for real."
+          >
+            Send test to me
+          </CardTitle>
+        </CardHeader>
+        <CardBody>
+          <Button variant="tinted" leadingIcon={Send} loading={sendingTest} onClick={sendTest}>
+            Send test to me
+          </Button>
+        </CardBody>
+      </Card>
+
       <Card elevation="e1">
         <CardHeader>
           <CardTitle as="h2" description={failures.length > 0 ? `${failures.length} thing${failures.length === 1 ? "" : "s"} to fix before sending.` : "Ready to send."}>
@@ -127,8 +158,22 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
       </Card>
 
       <Card elevation="e1">
-        <CardHeader>
-          <CardTitle as="h2" description={`${clientName}'s contacts. ${recipientSentence(summary)}`}>
+        <CardHeader
+          action={
+            contacts.length > 0 ? (
+              <Button
+                size="s"
+                variant="plain"
+                onClick={() =>
+                  setSelected(new Set(contacts.filter((c) => c.isActive && !c.isInternal).map((c) => c.key)))
+                }
+              >
+                Select all client contacts
+              </Button>
+            ) : null
+          }
+        >
+          <CardTitle as="h2" description={`${clientName}'s contacts. ${recipientSentence(summary)}. Nothing is picked until you choose it.`}>
             Recipients
           </CardTitle>
         </CardHeader>

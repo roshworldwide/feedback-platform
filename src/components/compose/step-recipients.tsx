@@ -30,7 +30,7 @@ import {
   TextInput,
 } from "@/components/ui";
 import { CouldntLoadInline } from "@/components/campaigns/couldnt-load";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, isInternalEmail } from "@/lib/utils";
 import {
   isEmailShaped,
   recipientSentence,
@@ -50,6 +50,8 @@ export type StepRecipientsProps = {
   onReload: () => void;
   /** Everyone currently selected, contacts and ad-hoc together. */
   chosen: RecipientChoice[];
+  /** Same list the server re-checks an ad-hoc address against at send time. */
+  internalEmailDomains: string[];
 };
 
 function Group({
@@ -168,6 +170,7 @@ export function StepRecipients({
   loading,
   onReload,
   chosen,
+  internalEmailDomains,
 }: StepRecipientsProps) {
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
@@ -367,6 +370,10 @@ export function StepRecipients({
                 inputMode="email"
                 placeholder="priya@cleartrip.com"
                 onChange={(event) => setEmail(event.currentTarget.value)}
+                onBlur={(event) => {
+                  const address = event.currentTarget.value.trim();
+                  if (address.includes("@")) setInternal(isInternalEmail(address, internalEmailDomains));
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") addAdHoc();
                 }}

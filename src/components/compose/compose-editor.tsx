@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Save } from "lucide-react";
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
 import type { EmailProvider } from "@/lib/email/send";
+import { isInternalEmail } from "@/lib/utils";
 import { loadRecipientsAction, saveDraftAction } from "@/app/(app)/compose/actions";
 import { StepContent } from "./step-content";
 import { StepDesign } from "./step-design";
@@ -56,6 +57,8 @@ export type ComposeEditorProps = {
   mine: boolean;
   /** False renders the AI Check step disabled with a one-line explanation. */
   aiCheckAvailable: boolean;
+  /** Same list the server re-checks an ad-hoc address against at send time. */
+  internalEmailDomains: string[];
 };
 
 function clockLabel(): string {
@@ -78,6 +81,7 @@ export function ComposeEditor({
   provider,
   mine,
   aiCheckAvailable,
+  internalEmailDomains,
 }: ComposeEditorProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -193,14 +197,18 @@ export function ComposeEditor({
         contactId: null,
         email: person.email,
         fullName: person.fullName,
+        // An address on an internal domain is internal whatever the box
+        // said — the send-time check re-derives this the same way, so the
+        // screen must show the same number it's about to be held to rather
+        // than a friendlier one that only fails after Send is pressed.
+        isInternal: person.isInternal || isInternalEmail(person.email, internalEmailDomains),
         title: "",
-        isInternal: person.isInternal,
         bouncedAt: null,
         isActive: true,
       });
     }
     return [...byKey.values()];
-  }, [contacts, doc.contactIds, doc.adHoc]);
+  }, [contacts, doc.contactIds, doc.adHoc, internalEmailDomains]);
 
   /* ── What the rail shows ────────────────────────────────────────────────── */
 
@@ -375,6 +383,7 @@ export function ComposeEditor({
                 loading={contactsLoading}
                 onReload={() => setContactsNonce((current) => current + 1)}
                 chosen={chosen}
+                internalEmailDomains={internalEmailDomains}
               />
             ) : null}
 

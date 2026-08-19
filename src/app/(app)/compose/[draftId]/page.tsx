@@ -23,6 +23,7 @@ import {
 } from "@/components/compose/vocabulary";
 import { aiAvailable } from "@/lib/ai";
 import { emailProvider } from "@/lib/email/send";
+import { internalDomains } from "@/lib/env";
 import {
   getDraft,
   listComposeClients,
@@ -113,6 +114,7 @@ export default async function ComposeDraftPage({
       provider={emailProvider()}
       mine={isMine(draft.data.ownerId, me)}
       aiCheckAvailable={aiAvailable()}
+      internalEmailDomains={internalDomains()}
     />
   );
 }

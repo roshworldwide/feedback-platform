@@ -349,9 +349,10 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
               >
                 Both frames are the same document at two viewport widths, shrunk
                 to fit this column — each one scrolls on its own past a
-                comfortable height, rather than stretching the page. The
-                greeting uses your own name here; each recipient receives
-                theirs, and their own tracking token.
+                comfortable height, rather than stretching the page. Nothing is
+                added to the body automatically — type {"{{contact_first_name}}"}{" "}
+                if you want each recipient greeted by name. Each recipient still
+                gets their own tracking token.
                 {doc.scoreboardEnabled
                   ? scoreboardIncluded
                     ? " The performance scoreboard is included, from this client's real sent reports."

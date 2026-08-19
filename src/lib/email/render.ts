@@ -272,13 +272,9 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     ),
   );
 
-  // Body
-  rows.push(
-    row(
-      `<p style="margin:0 0 14px;font-family:${font};font-size:15px;line-height:24px;color:${palette.inkMuted};">Hi ${escapeHtml(input.contactFirstName || "there")},</p>${bodyHtml}`,
-      palette,
-    ),
-  );
+  // Body — nothing is prepended here. A greeting is only in the email if it
+  // was typed into the body, e.g. as literal text or as {{contact_first_name}}.
+  rows.push(row(bodyHtml, palette));
 
   // Attachment, stated rather than assumed.
   if (input.attachment?.name) {
@@ -350,8 +346,6 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     "",
     title,
     [input.reportNumber, input.periodLabel].filter(Boolean).join(" · "),
-    "",
-    `Hi ${input.contactFirstName || "there"},`,
     "",
     markdownToPlainText(bodySource),
     "",

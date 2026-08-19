@@ -1,5 +1,6 @@
 import {
   Building2,
+  ClipboardCheck,
   LayoutDashboard,
   MessageSquareQuote,
   Send,
@@ -10,10 +11,11 @@ import {
 } from "lucide-react";
 
 /**
- * The seven destinations, stated once.
+ * The eight destinations, stated once.
  *
  * Order is the order of the working day: look at the numbers, then the sends,
- * then the people they went to, then write the next one.
+ * then the people they went to, then write the next one. Audits sits last —
+ * its own upload-to-send flow, reached for less often than a daily report.
  */
 export type NavItem = {
   href: string;
@@ -66,6 +68,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Settings",
     icon: Settings,
     hint: "People, finishes and delivery configuration",
+  },
+  {
+    href: "/audits",
+    label: "Audits",
+    icon: ClipboardCheck,
+    hint: "Upload a call-audit CSV, review the report, send it as a campaign",
   },
 ] as const;
 

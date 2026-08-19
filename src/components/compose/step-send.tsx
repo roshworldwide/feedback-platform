@@ -15,6 +15,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import type { EmailProvider } from "@/lib/email/send";
 import {
   ArrowRight,
   CalendarClock,
@@ -59,8 +60,8 @@ export type StepSendProps = {
   clientName: string | null;
   chosen: RecipientChoice[];
   series: SeriesOption[] | null;
-  /** "resend" when a provider key is configured, "dev" when it only logs. */
-  provider: "resend" | "dev";
+  /** "resend" or "gmail" when a provider is configured, "dev" when it only logs. */
+  provider: EmailProvider;
   onGo: (step: ComposeStep) => void;
   /** Saves the draft before the send, so a failure loses nothing. */
   onBeforeSend: () => Promise<void>;
@@ -398,8 +399,9 @@ export function StepSend({
             >
               No mail provider is configured on this environment. A send will
               create the campaign and its recipients and log each message to the
-              server instead of delivering it. Set <code>RESEND_API_KEY</code> to
-              deliver for real.
+              server instead of delivering it. Set <code>RESEND_API_KEY</code>, or{" "}
+              <code>GMAIL_USER</code>/<code>GMAIL_APP_PASSWORD</code>, to deliver
+              for real.
             </p>
           ) : null}
 

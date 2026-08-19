@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Save } from "lucide-react";
 import { Alert, Button, Card, Field, TextInput, useToast } from "@/components/ui";
+import type { EmailProvider } from "@/lib/email/send";
 import { loadRecipientsAction, saveDraftAction } from "@/app/(app)/compose/actions";
 import { StepContent } from "./step-content";
 import { StepDesign } from "./step-design";
@@ -50,7 +51,7 @@ export type ComposeEditorProps = {
   clientsReason: string | null;
   series: SeriesOption[] | null;
   seriesReason: string | null;
-  provider: "resend" | "dev";
+  provider: EmailProvider;
   /** False when the draft belongs to a colleague — saving will be refused. */
   mine: boolean;
   /** False renders the AI Check step disabled with a one-line explanation. */

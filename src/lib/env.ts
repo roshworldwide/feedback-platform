@@ -17,6 +17,9 @@ const publicSchema = z.object({
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20, "SUPABASE_SERVICE_ROLE_KEY missing"),
   RESEND_API_KEY: z.string().optional(),
+  /** Gmail/Workspace SMTP fallback — used when RESEND_API_KEY isn't set. See email/send.ts. */
+  GMAIL_USER: z.string().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().default("Convin Data Labs <convinlabs@convin.ai>"),
   INTERNAL_EMAIL_DOMAINS: z.string().default("convin.ai"),
   CRON_SECRET: z.string().optional(),
@@ -54,6 +57,8 @@ export function serverEnv() {
   const parsed = serverSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    GMAIL_USER: process.env.GMAIL_USER,
+    GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
     EMAIL_FROM: process.env.EMAIL_FROM,
     INTERNAL_EMAIL_DOMAINS: process.env.INTERNAL_EMAIL_DOMAINS,
     CRON_SECRET: process.env.CRON_SECRET,

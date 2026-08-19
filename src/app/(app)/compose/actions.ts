@@ -720,7 +720,14 @@ export async function previewEmailAction(
   }
 }
 
-export async function sendTestAction(doc: ComposeDoc): Promise<ActionResult<string>> {
+/**
+ * `testEmail` lets the sender pick any address for the test copy — not just
+ * their own. It's still unconditionally safe: whatever address is given,
+ * this writes no campaign and no recipient row, so it can never reach a
+ * reported figure. A blank or missing value falls back to the signed-in
+ * person's own address, same as before.
+ */
+export async function sendTestAction(doc: ComposeDoc, testEmail?: string): Promise<ActionResult<string>> {
   const parsed = parseComposeDoc(doc);
 
   try {
@@ -728,6 +735,11 @@ export async function sendTestAction(doc: ComposeDoc): Promise<ActionResult<stri
     if (!person) return failed(NO_SESSION);
     if (parsed.subject.trim() === "") {
       return failed("A test send still needs a subject. Add one on the Content step.");
+    }
+
+    const to = testEmail?.trim() || person.email;
+    if (!isEmailShaped(to)) {
+      return failed("That doesn't look like an email address. Fix it and try again.");
     }
 
     const clientName = await clientNameFor(parsed.clientId);
@@ -745,7 +757,7 @@ export async function sendTestAction(doc: ComposeDoc): Promise<ActionResult<stri
     });
 
     const result = await sendEmail({
-      to: person.email,
+      to,
       subject: `[Test] ${rendered.subject}`,
       html: rendered.html,
       text: rendered.text,
@@ -762,7 +774,7 @@ export async function sendTestAction(doc: ComposeDoc): Promise<ActionResult<stri
     // A test send writes no campaign and no recipient, so it can never reach a
     // reported figure. v1 recorded test sends as campaigns and then never
     // filtered them, and one two-person test defined a whole dashboard.
-    return { ok: true, data: person.email };
+    return { ok: true, data: to };
   } catch (cause) {
     return failed(`The test was not sent — ${reasonOf(cause)}. Nothing was changed.`);
   }

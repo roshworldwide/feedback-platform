@@ -11,7 +11,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Check, Send, X } from "lucide-react";
-import { Button, Card, CardBody, CardHeader, CardTitle, Checkbox, Spinner, useToast } from "@/components/ui";
+import { Button, Card, CardBody, CardHeader, CardTitle, Checkbox, Field, Spinner, TextInput, useToast } from "@/components/ui";
 import { recipientSentence, sendPreflight, summariseRecipients, type RecipientChoice } from "./vocabulary";
 import { loadAuditRecipientsAction, sendAuditReportAction, sendTestAuditReportAction } from "@/app/(app)/audits/actions";
 import type { AuditRunStatus } from "@/lib/audits/types";
@@ -33,6 +33,7 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [sending, setSending] = React.useState(false);
   const [sendingTest, setSendingTest] = React.useState(false);
+  const [testEmail, setTestEmail] = React.useState("");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -86,7 +87,7 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
 
   async function sendTest() {
     setSendingTest(true);
-    const result = await sendTestAuditReportAction(runId);
+    const result = await sendTestAuditReportAction(runId, testEmail);
     setSendingTest(false);
     toast({
       message: result.ok
@@ -118,14 +119,22 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
         <CardHeader>
           <CardTitle
             as="h2"
-            description="A copy addressed to you, marked as a test in the email itself. It writes no campaign and no recipient, so it can never reach a client contact — the safe way to see exactly what this report looks like before it goes out for real."
+            description="Marked as a test in the email itself. It writes no campaign and no recipient, so it can never reach a client contact — the safe way to see exactly what this report looks like before it goes out for real, sent to yourself or anyone you want to check it with."
           >
-            Send test to me
+            Send a test
           </CardTitle>
         </CardHeader>
-        <CardBody>
-          <Button variant="tinted" leadingIcon={Send} loading={sendingTest} onClick={sendTest}>
-            Send test to me
+        <CardBody className="flex flex-col" style={{ gap: "var(--space-3)" }}>
+          <Field label="Send test to" hint="Leave blank to send it to your own address.">
+            <TextInput
+              type="email"
+              placeholder="you@company.com"
+              value={testEmail}
+              onChange={(event) => setTestEmail(event.currentTarget.value)}
+            />
+          </Field>
+          <Button variant="tinted" leadingIcon={Send} loading={sendingTest} onClick={sendTest} style={{ alignSelf: "flex-start" }}>
+            Send test
           </Button>
         </CardBody>
       </Card>

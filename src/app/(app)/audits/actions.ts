@@ -47,7 +47,7 @@ import type {
   TaxonomyParameter,
 } from "@/lib/audits/types";
 import type { ActionResult } from "@/components/audits/vocabulary";
-import type { RecipientChoice } from "@/components/compose/vocabulary";
+import { isEmailShaped, type RecipientChoice } from "@/components/compose/vocabulary";
 
 /* ── Shared plumbing — mirrors compose/actions.ts's conventions exactly ────── */
 
@@ -815,16 +815,22 @@ export async function sendAuditReportAction(
 }
 
 /**
- * A copy addressed to the signed-in person only, marked as a test in the
- * email itself — the same guarantee Compose's "Send test to me" makes. It
- * writes no campaign and no recipient row, so it can never reach a client
- * contact and never touches this run's status. This is the one exercise-the-
- * real-send-path route this feature should ever need for verification.
+ * A copy marked as a test in the email itself, addressed to whatever address
+ * is given — the signed-in person's own by default, but not limited to it.
+ * It writes no campaign and no recipient row regardless of the address, so
+ * it can never reach a client contact and never touches this run's status.
+ * This is the one exercise-the-real-send-path route this feature should
+ * ever need for verification.
  */
-export async function sendTestAuditReportAction(runId: string): Promise<ActionResult<string>> {
+export async function sendTestAuditReportAction(runId: string, testEmail?: string): Promise<ActionResult<string>> {
   try {
     const person = await actor();
     if (!person) return failed(NO_SESSION);
+
+    const to = testEmail?.trim() || person.email;
+    if (!isEmailShaped(to)) {
+      return failed("That doesn't look like an email address. Fix it and try again.");
+    }
 
     const supabase = await createClient();
     const loaded = await loadRunForSend(supabase, runId);
@@ -884,7 +890,7 @@ export async function sendTestAuditReportAction(runId: string): Promise<ActionRe
     });
 
     const result = await sendEmail({
-      to: person.email,
+      to,
       subject: `[Test] ${rendered.subject}`,
       html: rendered.html,
       text: rendered.text,
@@ -893,7 +899,7 @@ export async function sendTestAuditReportAction(runId: string): Promise<ActionRe
     });
     if (!result.ok) return failed(`The test was not sent — ${result.error}. Nothing about the run changed.`);
 
-    return { ok: true, data: person.email };
+    return { ok: true, data: to };
   } catch (cause) {
     return failed(`The test was not sent — ${reasonOf(cause)}.`);
   }

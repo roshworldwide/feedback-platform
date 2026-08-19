@@ -28,8 +28,10 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  Field,
   Segmented,
   Spinner,
+  TextInput,
   useToast,
 } from "@/components/ui";
 import { previewEmailAction, sendTestAction } from "@/app/(app)/compose/actions";
@@ -132,6 +134,7 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
   const { toast } = useToast();
   const [surface, setSurface] = React.useState<Surface>("both");
   const [testing, setTesting] = React.useState(false);
+  const [testEmail, setTestEmail] = React.useState("");
 
   const checks = React.useMemo(() => preflight(doc, chosen), [doc, chosen]);
   const failures = checks.filter((check) => check.tone === "fail").length;
@@ -205,7 +208,7 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
 
   function sendTest() {
     setTesting(true);
-    void sendTestAction(doc).then((result) => {
+    void sendTestAction(doc, testEmail).then((result) => {
       setTesting(false);
       toast({
         message: result.ok
@@ -364,19 +367,28 @@ export function StepReview({ doc, chosen, clientName, onGo }: StepReviewProps) {
         <CardHeader>
           <CardTitle
             as="h2"
-            description="A copy addressed to you, marked as a test in the email itself. It writes no campaign and no recipient, so it can never reach a reported figure."
+            description="Marked as a test in the email itself. It writes no campaign and no recipient, so it can never reach a reported figure — send it to yourself, a colleague, or anyone you want to check it with."
           >
-            Send test to me
+            Send a test
           </CardTitle>
         </CardHeader>
-        <CardBody>
+        <CardBody className="flex flex-col" style={{ gap: "var(--space-3)" }}>
+          <Field label="Send test to" hint="Leave blank to send it to your own address.">
+            <TextInput
+              type="email"
+              placeholder="you@company.com"
+              value={testEmail}
+              onChange={(event) => setTestEmail(event.currentTarget.value)}
+            />
+          </Field>
           <Button
             variant="tinted"
             leadingIcon={Send}
             loading={testing}
             onClick={sendTest}
+            style={{ alignSelf: "flex-start" }}
           >
-            Send test to me
+            Send test
           </Button>
         </CardBody>
       </Card>

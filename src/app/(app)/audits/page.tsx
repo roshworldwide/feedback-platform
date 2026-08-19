@@ -9,9 +9,9 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Button, Card, CardBody, Pill } from "@/components/ui";
+import { Card, CardBody, Pill } from "@/components/ui";
 import { CouldntLoad } from "@/components/campaigns/couldnt-load";
+import { NewAuditButton } from "@/components/audits/new-audit-button";
 import { TaxonomySheet } from "@/components/audits/taxonomy-sheet";
 import { listAuditRuns, type AuditRunSummary } from "@/lib/queries/audits";
 import { fmtDate, fmtInt } from "@/lib/utils";
@@ -94,9 +94,7 @@ export default async function AuditsPage() {
         </div>
         <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
           <TaxonomySheet canDelete={canDelete} />
-          <Button variant="metal" size="m" leadingIcon={Plus} href="/audits/new">
-            New audit
-          </Button>
+          <NewAuditButton />
         </div>
       </div>
 

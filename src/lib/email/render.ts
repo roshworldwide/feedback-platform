@@ -314,8 +314,11 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     ),
   );
 
-  // The rating block
-  if (input.feedback.enabled) {
+  // The rating block. A test send has no recipient row for its inert token
+  // to resolve to — the same reason its CTA bypasses the tracking redirect
+  // above — so a star here could never actually record anything. Showing it
+  // anyway would be a control that looks live but silently does nothing.
+  if (input.feedback.enabled && !input.isTest) {
     rows.push(row(`<div style="padding-bottom:28px;">${ratingBlock(input, palette)}</div>`, palette));
   } else {
     rows.push(row(`<div style="padding-bottom:12px;"></div>`, palette));
@@ -360,7 +363,7 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     "",
     `${input.signature.name} — ${input.signature.title}, ${input.signature.org}`,
     "",
-    input.feedback.enabled
+    input.feedback.enabled && !input.isTest
       ? [
           "QUICK FEEDBACK",
           input.feedback.question || "Was this report helpful?",

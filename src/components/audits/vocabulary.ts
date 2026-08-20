@@ -82,7 +82,8 @@ export type SendPreflightInput = {
 
 /** The same shape Compose's Review step uses — a send cannot pass a rule this list shows as failing. */
 export function sendPreflight(input: SendPreflightInput): PreflightCheck[] {
-  const clientRecipients = input.chosen.filter((c) => !c.isInternal && c.isActive).length;
+  const active = input.chosen.filter((c) => c.isActive);
+  const clientRecipients = active.filter((c) => !c.isInternal).length;
   return [
     {
       id: "computed",
@@ -101,16 +102,31 @@ export function sendPreflight(input: SendPreflightInput): PreflightCheck[] {
       detail: input.clientId ? "The report is attributed to a client record." : "No client — this was set at upload.",
       fix: "upload",
     },
-    {
-      id: "recipient",
-      label: "At least one client recipient",
-      tone: clientRecipients > 0 ? "pass" : "fail",
-      detail:
-        clientRecipients > 0
-          ? `${clientRecipients} client recipient${clientRecipients === 1 ? "" : "s"} selected.`
-          : "Choose at least one client contact.",
-      fix: "send",
-    },
+    // Nobody selected can't send; an internal-only selection can — flagged,
+    // not blocked, the same allowance Compose's own pre-flight makes.
+    active.length === 0
+      ? {
+          id: "recipient",
+          label: "At least one recipient",
+          tone: "fail",
+          detail: "Choose at least one recipient.",
+          fix: "send",
+        }
+      : clientRecipients > 0
+        ? {
+            id: "recipient",
+            label: "At least one recipient",
+            tone: "pass",
+            detail: `${clientRecipients} client recipient${clientRecipients === 1 ? "" : "s"} selected.`,
+            fix: "send",
+          }
+        : {
+            id: "recipient",
+            label: "At least one recipient",
+            tone: "warn",
+            detail: "Only internal colleagues are selected — this will send, but no client will receive it.",
+            fix: "send",
+          },
   ];
 }
 

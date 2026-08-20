@@ -717,9 +717,9 @@ export async function sendAuditReportAction(
         isInternal: c.isInternal || isInternalEmail(c.email, domains),
       }));
     if (usable.length === 0) return failed("Nobody is selected, so nothing was sent. Choose recipients first.");
-    if (!usable.some((u) => !u.isInternal)) {
-      return failed("At least one client recipient is needed, so nothing was sent.");
-    }
+    // An internal-only send is allowed — a deliberate internal review send
+    // is a real use case, not blocked, just never mistaken for reaching a
+    // client (internal recipients stay excluded from every reported figure).
 
     const metrics = (run.metrics ?? {}) as unknown as ComputedMetrics;
     const narrative = (run.narrative ?? {}) as unknown as NarrativeResult;

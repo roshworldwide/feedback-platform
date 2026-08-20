@@ -672,25 +672,34 @@ export function preflight(
     });
   }
 
+  // Nobody selected is the one state that can't send. An internal-only
+  // selection can — a deliberate internal review send is a real use case —
+  // it's flagged so it's never mistaken for one that reached a client,
+  // never blocked outright.
   checks.push(
-    summary.client > 0
+    summary.total === 0
       ? {
           id: "recipients",
-          label: "At least one client recipient",
-          tone: "pass",
-          detail: recipientSentence(summary),
+          label: "At least one recipient",
+          tone: "fail",
+          detail: "Nobody is selected. Choose recipients on the Recipients step.",
           fix: "recipients",
         }
-      : {
-          id: "recipients",
-          label: "At least one client recipient",
-          tone: "fail",
-          detail:
-            summary.total === 0
-              ? "Nobody is selected. Choose recipients on the Recipients step."
-              : "Only internal colleagues are selected, so no client would receive this.",
-          fix: "recipients",
-        },
+      : summary.client > 0
+        ? {
+            id: "recipients",
+            label: "At least one recipient",
+            tone: "pass",
+            detail: recipientSentence(summary),
+            fix: "recipients",
+          }
+        : {
+            id: "recipients",
+            label: "At least one recipient",
+            tone: "warn",
+            detail: "Only internal colleagues are selected — this will send, but no client will receive it.",
+            fix: "recipients",
+          },
   );
 
   if (summary.invalid > 0) {

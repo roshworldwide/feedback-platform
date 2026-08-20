@@ -101,6 +101,7 @@ export function StepSend({
 
   const checks = preflight(doc, chosen);
   const failures = blockingFailures(checks);
+  const warnings = checks.filter((check) => check.tone === "warn");
   const summary = summariseRecipients(chosen);
 
   const seriesForClient = (series ?? []).filter((item) => item.clientId === doc.clientId);
@@ -440,6 +441,20 @@ export function StepSend({
                 </Button>
               </div>
             </div>
+          ) : null}
+
+          {failures.length === 0 && warnings.length > 0 ? (
+            <ul role="status" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              {warnings.map((check) => (
+                <li
+                  key={check.id}
+                  className="t-footnote prose-measure"
+                  style={{ color: "var(--signal-caution)" }}
+                >
+                  {check.detail}
+                </li>
+              ))}
+            </ul>
           ) : null}
         </CardBody>
       </Card>

@@ -229,7 +229,13 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
 
   const bodyHtml = markdownToEmailHtml(bodySource, palette);
   const reportUrl = safeUrl(input.reportUrl);
-  const ctaHref = `${input.appUrl}/api/t/c/${input.token}`;
+  // A test send writes no recipient row, so its token can never resolve to
+  // one — routing its CTA through the same tracking redirect a real send
+  // uses would always land on "this link has expired," a broken preview of
+  // a link that isn't actually broken. Only a real send needs the redirect
+  // (that's the only place a click has anyone to record it against);
+  // a test send's CTA goes straight to the real destination instead.
+  const ctaHref = input.isTest && reportUrl ? reportUrl : `${input.appUrl}/api/t/c/${input.token}`;
   const pixel = `${input.appUrl}/api/t/o/${input.token}`;
 
   const preheader =

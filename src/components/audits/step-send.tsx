@@ -10,7 +10,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, Send, X } from "lucide-react";
+import { AlertTriangle, Check, Send, X } from "lucide-react";
 import { Button, Card, CardBody, CardHeader, CardTitle, Checkbox, Field, Spinner, TextInput, useToast } from "@/components/ui";
 import { recipientSentence, sendPreflight, summariseRecipients, type RecipientChoice } from "./vocabulary";
 import { loadAuditRecipientsAction, sendAuditReportAction, sendTestAuditReportAction } from "@/app/(app)/audits/actions";
@@ -151,6 +151,8 @@ export function StepSend({ runId, clientId, clientName, status, campaignId }: St
               <li key={check.id} className="flex items-center" style={{ gap: "var(--space-3)", paddingBlock: "var(--space-2)", borderTop: "1px solid var(--stroke-hairline)" }}>
                 {check.tone === "pass" ? (
                   <Check size={14} style={{ color: "var(--signal-nominal)" }} />
+                ) : check.tone === "warn" ? (
+                  <AlertTriangle size={14} style={{ color: "var(--signal-caution)" }} />
                 ) : (
                   <X size={14} style={{ color: "var(--signal-abort)" }} />
                 )}

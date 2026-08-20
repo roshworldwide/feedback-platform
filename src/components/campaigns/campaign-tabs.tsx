@@ -23,6 +23,7 @@ import {
   Paperclip,
   Send,
   Star,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -146,9 +147,59 @@ function PerformancePanel({ campaign }: { campaign: CampaignDetail }) {
 
   const period = periodOf(stats);
   const note = exclusionNote(stats.recipients_internal);
+  const internalOnly = stats.recipients_external === 0 && stats.recipients_internal > 0;
 
   return (
     <div className="flex flex-col" style={{ gap: "var(--space-5)" }}>
+      {internalOnly ? (
+        <Card
+          accent="caution"
+          style={{
+            display: "flex",
+            gap: "var(--space-4)",
+            padding: "var(--space-6)",
+            alignItems: "flex-start",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: "var(--space-8)",
+              height: "var(--space-8)",
+              flex: "none",
+              borderRadius: "var(--radius-capsule)",
+              background: "var(--fill-quiet)",
+              color: "var(--signal-caution)",
+            }}
+          >
+            <Users size={18} strokeWidth={1.75} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <p className="t-headline" style={{ margin: 0, color: "var(--content-primary)" }}>
+              No client recipients on this send
+            </p>
+            <p
+              className="t-subhead prose-measure"
+              style={{ margin: "var(--space-2) 0 0", color: "var(--content-secondary)" }}
+            >
+              This report went only to {fmtInt(stats.recipients_internal)} internal
+              colleague{stats.recipients_internal === 1 ? "" : "s"}, so the figures
+              below are structurally zero — internal opens, clicks and ratings never
+              count toward client-facing performance.
+            </p>
+            <p
+              className="t-footnote prose-measure"
+              style={{ margin: "var(--space-2) 0 0", color: "var(--content-tertiary)" }}
+            >
+              What actually happened is still fully recorded. Open the Recipients or
+              Activity tab to see who opened, clicked or rated it.
+            </p>
+          </div>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle

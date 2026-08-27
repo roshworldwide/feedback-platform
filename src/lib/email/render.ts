@@ -154,9 +154,10 @@ function ratingBlock(input: ReportEmailInput, palette: EmailPalette): string {
     })
     .join("");
 
-  const comment = input.feedback.askComment
-    ? `<p style="margin:10px 0 0;font-family:${font};font-size:12px;line-height:17px;color:${palette.inkFaint};">You can add a comment on the next screen — it goes straight to the analyst who wrote this.</p>`
-    : "";
+  // The comment box itself lives on the /f/[token] landing page — see
+  // feedback-panel.tsx, gated on the same input.feedback.askComment — so
+  // this block only ever needed to render the stars. No line here promises
+  // where a comment goes; that stays for the landing page to say, if at all.
 
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ` +
@@ -167,7 +168,6 @@ function ratingBlock(input: ReportEmailInput, palette: EmailPalette): string {
     `<p style="margin:0 0 4px;font-family:${font};font-size:17px;line-height:23px;font-weight:600;color:${palette.ink};">${escapeHtml(question)}</p>` +
     `<p style="margin:0 0 12px;font-family:${font};font-size:12px;line-height:17px;color:${palette.inkFaint};">Takes 15 seconds · Helps us improve future reports</p>` +
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${cells}</tr></table>` +
-    comment +
     `</td></tr></table>`
   );
 }

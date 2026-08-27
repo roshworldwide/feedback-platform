@@ -370,23 +370,28 @@ const NUMBER_SHAPE = /^(.*?)(\d+)\s*$/;
 /**
  * The next DL number for a client, derived from the highest one already used.
  *
- * Scoped to the client because `campaigns_report_number_key` is unique per
- * client and nothing wider — DL-034 existed simultaneously for three different
- * accounts in v1 and the collision was invisible. A suggestion is never
- * silently applied; the field stays editable.
+ * Scoped to the client and nothing narrower. `campaigns_report_number_key` is
+ * unique on (client_id, report_number) — it has no idea a series exists — so
+ * this must scan every campaign the client has regardless of which series it
+ * belongs to. An earlier version added `.eq("series_id", seriesId)` here,
+ * which read as a reasonable narrowing but wasn't: a client running two
+ * series (Thyrocare runs two in the seed data) could have DL-099 already
+ * spoken for on one series while this function, looking only inside the
+ * other, suggested DL-004 — a number that then collided at send time with a
+ * constraint violation the Content step never saw coming. See
+ * drafts.test.ts for the exact scenario. A suggestion is never silently
+ * applied; the field stays editable regardless.
  */
 export async function suggestReportNumber(
   clientId: string,
-  seriesId: string | null,
 ): Promise<QueryResult<string | null>> {
   try {
     const supabase = await db();
-    let request = supabase
+    const request = supabase
       .from("campaigns")
       .select("report_number")
       .eq("client_id", clientId)
       .not("report_number", "is", null);
-    if (seriesId) request = request.eq("series_id", seriesId);
 
     const { data, error } = await request.limit(MAX_ROWS);
     if (error) throw error;

@@ -444,13 +444,12 @@ export async function deleteDraftAction(id: string): Promise<ActionResult<string
 
 export async function suggestReportNumberAction(
   clientId: string,
-  seriesId: string | null,
 ): Promise<ActionResult<string | null>> {
   if (!clientId) {
     return failed("Pick a client first — DL numbers run per client, not globally.");
   }
   const { suggestReportNumber } = await import("@/lib/queries/drafts");
-  const result = await suggestReportNumber(clientId, seriesId);
+  const result = await suggestReportNumber(clientId);
   return result.ok
     ? { ok: true, data: result.data }
     : failed(`Couldn't read the numbers already used — ${result.reason}. Type one instead.`);

@@ -119,7 +119,7 @@ export function StepContent({
   function suggestNumber() {
     if (!doc.clientId) return;
     setSuggesting(true);
-    void suggestReportNumberAction(doc.clientId, doc.seriesId).then((result) => {
+    void suggestReportNumberAction(doc.clientId).then((result) => {
       setSuggesting(false);
       if (!result.ok) {
         toast({ message: result.message, tone: "abort" });

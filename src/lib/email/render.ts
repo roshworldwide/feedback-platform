@@ -300,19 +300,10 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     rows.push(row(cta(ctaHref, palette), palette));
   }
 
-  // Signature
-  rows.push(
-    row(
-      `<div style="border-top:1px solid ${palette.hairline};padding-top:18px;margin-bottom:${meta.key === "executive-brief" ? 20 : 26}px;">` +
-        `<p style="margin:0;font-family:${font};font-size:14px;line-height:20px;font-weight:600;color:${palette.ink};">${escapeHtml(input.signature.name)}</p>` +
-        `<p style="margin:0;font-family:${font};font-size:13px;line-height:19px;color:${palette.inkFaint};">${escapeHtml(input.signature.title)} · ${escapeHtml(input.signature.org)}</p>` +
-        (input.signature.replyTo
-          ? `<p style="margin:4px 0 0;font-family:${font};font-size:13px;line-height:19px;"><a href="mailto:${escapeHtml(input.signature.replyTo)}" style="color:${palette.linkInk};text-decoration:underline;">${escapeHtml(input.signature.replyTo)}</a></p>`
-          : "") +
-        `</div>`,
-      palette,
-    ),
-  );
+  // No personal signature card in the body. The sender's identity still
+  // travels as the envelope Reply-To (set in dispatch.ts / actions.ts from
+  // the creator's profile), so replies route correctly — it just isn't
+  // rendered as a named contact card in front of the client.
 
   // The rating block. A test send has no recipient row for its inert token
   // to resolve to — the same reason its CTA bypasses the tracking redirect
@@ -360,8 +351,6 @@ export function renderReportEmail(input: ReportEmailInput): RenderedEmail {
     "",
     reportUrl ? `Access the complete analysis — OPEN FULL REPORT: ${ctaHref}` : "",
     input.attachment?.name ? `Attached: ${input.attachment.name}` : "",
-    "",
-    `${input.signature.name} — ${input.signature.title}, ${input.signature.org}`,
     "",
     input.feedback.enabled && !input.isTest
       ? [

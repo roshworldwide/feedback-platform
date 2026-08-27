@@ -8,10 +8,10 @@
  * is the difference between a send history that can be counted and v1's, which
  * could not.
  *
- * The DL number is suggested from the numbers already used for *this client* —
- * the uniqueness constraint is per client, so a global counter would suggest
- * collisions. The suggestion fills the field and stops there; it is never
- * applied silently.
+ * The DL number is suggested from the numbers already used for *this client*
+ * — a fresh, never-before-used one, as a convenience default. Reusing a
+ * number is allowed and not flagged; the field is free text and the
+ * suggestion fills it and stops there, never applied silently.
  */
 
 import * as React from "react";
@@ -303,7 +303,7 @@ export function StepContent({
           >
             <Field
               label="DL number"
-              hint="Unique per client, so DL-034 may exist once for each account."
+              hint="Free text — reuse one as often as you like. 'Next' suggests an unused one."
             >
               <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
                 <TextInput

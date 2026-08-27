@@ -964,12 +964,10 @@ export async function sendCampaignAction(
       .single();
 
     if (campaignError) {
-      const duplicate = campaignError.code === "23505";
-      return failed(
-        duplicate
-          ? `${parsed.reportNumber.trim()} already exists for ${clientName}, so nothing was sent. Change the DL number on the Content step.`
-          : `Nothing was sent — ${campaignError.message}. The draft is untouched.`,
-      );
+      // report_number has no uniqueness constraint to violate — the same DL
+      // number may be sent for a client as many times as chosen. Whatever
+      // reaches here is a genuine database error, not a collision to explain.
+      return failed(`Nothing was sent — ${campaignError.message}. The draft is untouched.`);
     }
 
     const campaignId = str((created as unknown as Row).id);

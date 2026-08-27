@@ -3,16 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 /**
  * The scenario a live send hit: Thyrocare runs two report series (seeded as
  * "DeGrowth Analysis — Farming Teams" and "Competitors & Reasons"). DL-099
- * was already used on one of them. `campaigns_report_number_key` is unique
- * on (client_id, report_number) alone — it has no idea a series exists — so
- * a suggestion must weigh every campaign the client has, not just the ones
- * on whichever series is currently open.
+ * was already used on one of them. report_number carries no uniqueness
+ * constraint (reuse is intentional, see 0014_report_number_reusable.sql), so
+ * this suggestion is a convenience default rather than a collision check —
+ * but a useful default still has to look at the client's actual numbering,
+ * not a subset of it.
  *
  * An earlier version added `.eq("series_id", seriesId)` to the query and
  * took a `seriesId` parameter to feed it. Looking only inside "DeGrowth" it
- * saw DL-003 as the highest number and suggested DL-004 — already spoken
- * for on "Competitors & Reasons" — and the send then failed at step 5 with
- * a raw constraint violation the Content step never saw coming. The fix
+ * saw DL-003 as the highest number and suggested DL-004, silently lower than
+ * DL-099 on "Competitors & Reasons" for the very same client. The fix
  * removed the parameter entirely, not just stopped using it: there is now
  * nothing for a caller to narrow by. Both the removed parameter and the
  * removed filter are asserted below.
@@ -61,8 +61,8 @@ describe("suggestReportNumber — one sequence per client, never per series", ()
     const result = await suggestReportNumber(THYROCARE);
 
     // A view scoped to "series-degrowth" alone would see only DL-003 and
-    // suggest DL-004 — already taken on "series-competitors" for this same
-    // client, which is exactly what surfaced as a send-time collision.
+    // suggest DL-004 — a real, if no longer forbidden, undercount against
+    // "series-competitors" for this same client's actual highest number.
     expect(result).toEqual({ ok: true, data: "DL-100" });
   });
 

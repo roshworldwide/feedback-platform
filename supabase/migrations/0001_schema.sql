@@ -127,11 +127,13 @@ create table public.campaigns (
     check (status <> 'scheduled' or scheduled_for is not null)
 );
 
--- FIX: DL-034 existed simultaneously for Housing, Fyers and Metropolis, and
--- twice within Metropolis. Unique per client.
-create unique index campaigns_report_number_key
-  on public.campaigns (client_id, upper(btrim(report_number)))
-  where report_number is not null and btrim(report_number) <> '';
+-- FIX (reversed in 0014_report_number_reusable.sql): DL-034 existed
+-- simultaneously for Housing, Fyers and Metropolis, and twice within
+-- Metropolis, so this originally made report_number unique per client. The
+-- team later asked for the opposite — the same DL number sent as many times
+-- as they choose — so 0014 drops the index this created. Left here, rather
+-- than edited out, because this file is the historical record of what ran;
+-- 0014 is the current truth for whether a duplicate is allowed.
 
 create index campaigns_client_sent_idx on public.campaigns (client_id, sent_at desc);
 create index campaigns_status_idx      on public.campaigns (status, scheduled_for);

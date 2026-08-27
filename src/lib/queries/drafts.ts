@@ -370,17 +370,16 @@ const NUMBER_SHAPE = /^(.*?)(\d+)\s*$/;
 /**
  * The next DL number for a client, derived from the highest one already used.
  *
- * Scoped to the client and nothing narrower. `campaigns_report_number_key` is
- * unique on (client_id, report_number) — it has no idea a series exists — so
- * this must scan every campaign the client has regardless of which series it
- * belongs to. An earlier version added `.eq("series_id", seriesId)` here,
- * which read as a reasonable narrowing but wasn't: a client running two
- * series (Thyrocare runs two in the seed data) could have DL-099 already
- * spoken for on one series while this function, looking only inside the
- * other, suggested DL-004 — a number that then collided at send time with a
- * constraint violation the Content step never saw coming. See
- * drafts.test.ts for the exact scenario. A suggestion is never silently
- * applied; the field stays editable regardless.
+ * report_number carries no uniqueness constraint — a number may be reused for
+ * a client as many times as chosen, by design — so this is a convenience
+ * default only, never a collision check. It still scans every campaign the
+ * client has regardless of series: an earlier version added
+ * `.eq("series_id", seriesId)` here, which happened to under-count on any
+ * client running more than one series (Thyrocare runs two in the seed data)
+ * and offered a lower number than the client's actual highest. That was a
+ * bug in the suggestion, not a safety check being removed — see
+ * drafts.test.ts. A suggestion is never silently applied; the field stays
+ * editable regardless.
  */
 export async function suggestReportNumber(
   clientId: string,

@@ -1,0 +1,22 @@
+-- ============================================================================
+-- Report numbers may repeat — a deliberate reversal, on request.
+--
+-- 0001_schema.sql added campaigns_report_number_key specifically because
+-- DL-034 existed simultaneously for Housing, Fyers and Metropolis in v1, and
+-- twice within Metropolis, with nothing to catch it. That index enforced one
+-- DL number per client at the database level.
+--
+-- The team wants the opposite: the same DL number sent as many times as they
+-- choose, for the same client, with nothing blocking it. This drops the
+-- constraint entirely rather than loosening it, so there is no longer a
+-- database-level notion of a report number being "taken."
+--
+-- What this does NOT undo: `client_id` is still NOT NULL and a real foreign
+-- key (0001's other fix), so a campaign still cannot exist unattributed —
+-- only the one-DL-number-per-client rule is gone. The Content step's
+-- "Suggest next" button still offers a fresh, never-used number as a
+-- friendly default; it is just no longer the only way to avoid an error,
+-- because reusing one is no longer an error.
+-- ============================================================================
+
+drop index if exists public.campaigns_report_number_key;
